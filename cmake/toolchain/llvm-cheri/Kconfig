@@ -1,0 +1,44 @@
+# Copyright (c) 2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+# Added to support CHERI 2023, University of Birmingham
+
+#set default to use llvm lld linker
+
+choice LLVM_LINKER
+	prompt "LLVM Linker"
+	depends on "${ZEPHYR_TOOLCHAIN_VARIANT}" = "llvm-cheri"
+	default LLVM_USE_LLD
+
+config LLVM_USE_LD
+	bool "GNU ld"
+	help
+	  Use binutils ld linker with llvm-cheri/clang.
+
+config LLVM_USE_LLD
+	bool "LLVM lld"
+	help
+	  Use LLVM built-in lld linker with llvm-cheri/clang.
+
+endchoice
+
+#set default to not use CHERI configurations unless specified
+
+config CHERI
+	bool "Build for CHERI architectures"
+	default n
+	help
+	  This option is used by the python script gen_isr_tables.py to read
+	  in a different intList structure compatible with the CHERI architecture
+	  and must be set to y if building for CHERI.
+
+
+config ISR_TABLE_USE_SYMBOLS
+	bool "Use symbols in the interrupt table instead of addresses"
+	default n
+	help
+	  When building for CHERI the interrupt table must not contain fixed
+	  addresses, so this must be set to y if building for CHERI. It is used
+	  in gen_isr_tables.py sw_isr_table.h intc_plic.c riscv_machine_timer.c
+	  uart_ns16550.c
+	  This option can also be used for non CHERI builds.
+
