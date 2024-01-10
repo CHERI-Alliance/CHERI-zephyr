@@ -7,6 +7,8 @@
  * Copyright (c) 2020-2023 Intel Corp.
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -74,6 +76,11 @@ BUILD_ASSERT(IS_ENABLED(CONFIG_PCIE), "NS16550(s) in DT need CONFIG_PCIE");
 	(DT_INST_FOREACH_STATUS_OKAY_VARGS(UART_NS16550_DT_PROP_IOMAPPED_HELPER, io_mapped, 0) 0)
 
 /* register definitions */
+
+#ifdef __CHERI_PURE_CAPABILITY__
+  /* We need to know the size of the device memory map in order to set the capability bounds */
+  #define UART_MMAP_LENGTH 0x208
+#endif
 
 #define REG_THR 0x00  /* Transmitter holding reg.       */
 #define REG_RDR 0x00  /* Receiver data reg.             */
@@ -396,17 +403,48 @@ static inline uint8_t reg_interval(const struct device *dev)
 
 static inline uintptr_t get_port(const struct device *dev)
 {
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* Device memory map capability */
+	extern void *mmdev_root_cap;
+#endif
 	uintptr_t port;
 #if UART_NS16550_IOPORT_ENABLED
 	const struct uart_ns16550_device_config *config = dev->config;
 
 	if (config->io_map) {
+		#ifdef __CHERI_PURE_CAPABILITY__
+		port = __builtin_cheri_address_set(mmdev_root_cap, config->port);
+		port = __builtin_cheri_bounds_set(port, UART_MMAP_LENGTH);
+		/* Permissions set at higher layer */
+		#else
 		port = config->port;
+		#endif
 	} else {
 #else
 	{
 #endif
+		#ifdef __CHERI_PURE_CAPABILITY__
+		port = __builtin_cheri_address_set(mmdev_root_cap, DEVICE_MMIO_GET(dev));
+		#ifdef DEVICE_MMIO_IS_IN_RAM
+			/*
+			 * When in RAM, the physical address (phys_addr) and region size (size)
+			 * is stored in a rom structure from DTS - see device_mmio.h
+			 */
+			size_t boundslength = DEVICE_MMIO_ROM_PTR(dev)->size;
+		#else
+			/*
+			 * When NOT in RAM(No MMU or PCIe), only the address (addr)
+			 * is stored in a rom structure from DTS - see device_mmio.h.
+			 * But we still need to know the size to set the bounds.
+			 */
+			size_t boundslength = UART_MMAP_LENGTH;
+		#endif /* DEVICE_MMIO_IS_IN_RAM */
+		port = __builtin_cheri_bounds_set(port, boundslength);
+		/* Permissions set at higher layer */
+		#else
 		port = DEVICE_MMIO_GET(dev);
+		#endif /* __CHERI_PURE_CAPABILITY__ */
 	}
 
 	return port;

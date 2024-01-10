@@ -2,6 +2,8 @@
  * Copyright (c) 2016 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
  /**
@@ -34,10 +36,15 @@
 extern "C" {
 #endif
 
-#ifdef __LP64__
-typedef uint64_t unative_t;
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* maintain pointer type otherwise will result in pointer that can not be dereferenced */
+	typedef uintptr_t unative_t;
 #else
-typedef uint32_t unative_t;
+	#ifdef __LP64__
+	typedef uint64_t unative_t;
+	#else
+	typedef uint32_t unative_t;
+	#endif
 #endif
 
 /** @cond INTERNAL_HIDDEN */

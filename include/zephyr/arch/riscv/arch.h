@@ -3,6 +3,8 @@
  * Contributors: 2018 Antmicro <www.antmicro.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -227,6 +229,22 @@ struct arch_mem_domain {
 };
 
 extern void z_irq_spurious(const void *unused);
+
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static ISR extern function declaration here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+#ifdef CONFIG_RISCV
+extern void timer_isr(const void *arg);
+extern void plic_irq_handler(const void *arg);
+#endif /*CONFIG_RISCV*/
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 
 /*
  * use atomic instruction csrrc to lock global irq

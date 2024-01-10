@@ -4,9 +4,24 @@
  * Copyright (c) 2022 BayLibre, SAS
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifdef CONFIG_64BIT
+
+   #ifdef __CHERI_PURE_CAPABILITY__
+   	/* integer load/store at cap addr based on ld/sd (XLEN = 64) */
+   	/* (for cap load/store at cap addr use clc and csc instructions) */
+
+	.macro clr, rd, mem
+	ld.cap \rd, \mem
+	.endm
+
+	.macro csr, rs, mem
+	sd.cap \rs, \mem
+	.endm
+   #else
 	/* register-wide load/store based on ld/sd (XLEN = 64) */
 
 	.macro lr, rd, mem
@@ -16,8 +31,19 @@
 	.macro sr, rs, mem
 	sd \rs, \mem
 	.endm
-
+   #endif
 #else
+   #ifdef __CHERI_PURE_CAPABILITY__
+   	/* integer load/store at cap addr based on lw/sw (XLEN = 32) */
+
+	.macro clr, rd, mem
+	lw.cap \rd, \mem
+	.endm
+
+	.macro csr, rs, mem
+	sw.cap \rs, \mem
+	.endm
+   #else
 	/* register-wide load/store based on lw/sw (XLEN = 32) */
 
 	.macro lr, rd, mem
@@ -27,11 +53,19 @@
 	.macro sr, rs, mem
 	sw \rs, \mem
 	.endm
-
+   #endif
 #endif
 
 #ifdef CONFIG_CPU_HAS_FPU_DOUBLE_PRECISION
+  #ifdef __CHERI_PURE_CAPABILITY__
+  	.macro cflr, rd, mem
+	cfld \rd, \mem
+	.endm
 
+	.macro cfsr, rs, mem
+	cfsd \rs, \mem
+	.endm
+  #else
 	.macro flr, rd, mem
 	fld \rd, \mem
 	.endm
@@ -39,7 +73,7 @@
 	.macro fsr, rs, mem
 	fsd \rs, \mem
 	.endm
-
+   #endif
 #else
 
 	.macro flr, rd, mem

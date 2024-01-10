@@ -2,6 +2,8 @@
  * Copyright (c) 2019 BayLibre SAS
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef ZEPHYR_INCLUDE_TOOLCHAIN_STDINT_H_
@@ -52,16 +54,22 @@
  * it to a long int to get some uniformity. Doing so also makes it compatible
  * with LP64 (64-bit) targets where a long is always 64-bit wide.
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+  /* For CHERI size of pointer is twice the size. For 32 bit targets it will be 64 bits. For 64 bit targets it will be 128 bits. */
+  #if __SIZEOF_POINTER__ != 2 * __SIZEOF_LONG__
+  #error "CHERI pointers are not twice as big as long ints"
+  #endif
 
-#if __SIZEOF_POINTER__ != __SIZEOF_LONG__
-#error "unexpected size difference between pointers and long ints"
+#else
+  #if __SIZEOF_POINTER__ != __SIZEOF_LONG__
+  #error "unexpected size difference between pointers and long ints"
+  #endif
+
+  #undef __INTPTR_TYPE__
+  #undef __UINTPTR_TYPE__
+  #define __INTPTR_TYPE__ long int
+  #define __UINTPTR_TYPE__ long unsigned int
 #endif
-
-#undef __INTPTR_TYPE__
-#undef __UINTPTR_TYPE__
-#define __INTPTR_TYPE__ long int
-#define __UINTPTR_TYPE__ long unsigned int
-
 /*
  * Re-define the INTN_C(value) integer constant expression macros to match the
  * integer types re-defined above.

@@ -4,6 +4,7 @@
 # Copyright (c) 2018 Foundries.io
 #
 # SPDX-License-Identifier: Apache-2.0
+# Modified to support CHERI 2023, University of Birmingham
 #
 
 import argparse
@@ -66,14 +67,36 @@ def read_intlist(elfobj, syms, snames):
         const void *param;
     };
     """
+
+    if "CONFIG_CHERI" in syms:
+    	debug("syms: \"{}\"".format(syms)) #add debug
+
     intList_sect = None
     intlist = {}
 
     prefix = endian_prefix()
 
     intlist_header_fmt = prefix + "II"
+
+    # For CHERI struct is 16 byte aligned (for 64 bit system) so there is some padding
+    # that needs to be factored in when unpacking the intList section
+    # I uint	num vectors 4 bytes
+    # I uint	offset 4 bytes
+    # q long long padding 8 bytes
+    if "CONFIG_CHERI" in syms:
+    	intlist_header_fmt_pad = prefix + "IIq"
+
     if "CONFIG_64BIT" in syms:
-        intlist_entry_fmt = prefix + "iiQQ"
+        # For CHERI *func and *param are twice the length
+        # i int32 line number 4 bytes
+        # i int32 flags 4 bytes
+        # q long long padding alignment 8 bytes because capabilities are aligned to 16 byte boundary (assuming start of struct is aligned to 16 byte boundary)
+        # QQ 2*unsigned long *func 16 bytes
+        # QQ 2*unsigned long *param 16 bytes
+        if "CONFIG_CHERI" in syms:
+        	intlist_entry_fmt = prefix + "iiqQQQQ"
+        else:
+        	intlist_entry_fmt = prefix + "iiQQ"
     else:
         intlist_entry_fmt = prefix + "iiII"
 
@@ -88,9 +111,30 @@ def read_intlist(elfobj, syms, snames):
 
     intdata = intList_sect.data()
 
-    header_sz = struct.calcsize(intlist_header_fmt)
+    #For CHERI add some extra debug info
+    if "CONFIG_CHERI" in syms:
+    	debug("intlist section: \"{}\"".format(intdata)) #add debug
+    	debug("intlist section size in bytes: \"{}\"".format(len(intdata))) #add debug
+    	#debug("intlist section: \"{}\"".format(str(intdata, 'cp1252'))) #add debug
+
+    if "CONFIG_CHERI" in syms:
+    	#For CHERI include padding in the header size calculation
+    	header_sz = struct.calcsize(intlist_header_fmt_pad)
+    else:
+    	header_sz = struct.calcsize(intlist_header_fmt)
+
     header = struct.unpack_from(intlist_header_fmt, intdata, 0)
+    #intdata is intdata(all section) minus the header (and padding if CHERI)
     intdata = intdata[header_sz:]
+
+    #For CHERI add some extra debug info
+    if "CONFIG_CHERI" in syms:
+    	debug("header size inc. padding in bytes: \"{}\"".format(header_sz)) #add debug
+    	debug("header format inc. padding (q): \"{}\"".format(intlist_header_fmt_pad)) #add debug
+    	debug("intdata: \"{}\"".format(intdata)) #add debug
+    	debug("intdata size in bytes: \"{}\"".format(len(intdata))) #add debug
+    	debug("indata format inc. padding (q): \"{}\"".format(intlist_entry_fmt)) #add debug
+        #debug("intdata str: \"{}\"".format(str(intdata, 'cp1252'))) #add debug
 
     debug(str(header))
 
@@ -104,9 +148,18 @@ def read_intlist(elfobj, syms, snames):
     debug("handler    irq flags param")
     debug("--------------------------")
 
-    for irq in intlist["interrupts"]:
-        debug("{0:<10} {1:<3} {2:<3}   {3}".format(
-            hex(irq[2]), irq[0], irq[1], hex(irq[3])))
+    #For CHERI we do not want to display padding or capability bounds info
+    if "CONFIG_CHERI" in syms:
+    	#"iiqQQQQ" -> 0123456 inc CHERI padding, we only want to display 0135
+    	for irq in intlist["interrupts"]:
+        	debug("{0:<10} {1:<3} {2:<3} {3} ".format(
+            		hex(irq[3]), irq[0], irq[1], hex(irq[5])))
+	#display extra debug info
+	#debug("intlist-interrupts: \"{}\"".format(intlist["interrupts"])) #add debug
+    else:
+    	for irq in intlist["interrupts"]:
+    	    debug("{0:<10} {1:<3} {2:<3}   {3}".format(
+    	        hex(irq[2]), irq[0], irq[1], hex(irq[3])))
 
     return intlist
 
@@ -241,7 +294,14 @@ def write_source_file(fp, vt, swt, intlist, syms, shared):
         if isinstance (func, str) and "z_shared_isr" in func:
             param = "&z_shared_sw_isr_table[{0}]".format(i)
         if isinstance(func, int):
-            func_as_string = "{0:#x}".format(func)
+            if "CONFIG_ISR_TABLE_USE_SYMBOLS" in syms:
+                #CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities
+                #if func is an integer address, we need the symbol name instead of converting the integer to a string
+                #so we need to search for it in the symbol table
+                func_as_string = "((uintptr_t)&"+get_symbol_from_addr(syms, func)+")"
+                debug("use isr function symbol: \"{}\"".format(func_as_string))
+            else:
+                func_as_string = "{0:#x}".format(func)
         else:
             func_as_string = func
 
@@ -295,6 +355,13 @@ def main():
     with open(args.kernel, "rb") as fp:
         kernel = ELFFile(fp)
         syms = get_symbols(kernel)
+        #CHERI temp
+        if "CONFIG_ISR_TABLE_USE_SYMBOLS" in syms:
+            debug("CONFIG_ISR_TABLE_USE_SYMBOLS is present: \"{}\"")
+        else:
+            debug("CONFIG_ISR_TABLE_USE_SYMBOLS is NOT present: \"{}\"")
+
+
         intlist = read_intlist(kernel, syms, args.intlist_section)
 
     if "CONFIG_MULTI_LEVEL_INTERRUPTS" in syms:
@@ -356,7 +423,27 @@ def main():
             error("one or both of -s or -V needs to be specified on command line")
         swt = None
 
-    for irq, flags, func, param in intlist["interrupts"]:
+    #------------------------------------------------
+    for paramlist in intlist["interrupts"]:
+        #For CHERI the parameter list is bigger because it includes padding and capability bounds
+        if "CONFIG_CHERI" in syms:
+            irq = paramlist[0]
+            flags = paramlist[1]
+            pad = paramlist[2]
+            func = paramlist[3]
+            func2 = paramlist[4]
+            param = paramlist[5]
+            param2 = paramlist[6]
+            #debug("paramlist: \"{}\"".format(paramlist)) #add debug
+            #debug("paramlist - irq: \"{}\"".format(irq)) #add debug
+            #debug("paramlist - func: \"{}\"".format(func)) #add debug
+        else:
+            irq = paramlist[0]
+            flags = paramlist[1]
+            func = paramlist[2]
+            param = paramlist[3]
+	#-----------------------------
+
         if flags & ISR_FLAG_DIRECT:
             if param != 0:
                 error("Direct irq %d declared, but has non-NULL parameter"

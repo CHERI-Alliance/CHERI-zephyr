@@ -2,6 +2,8 @@
  * Copyright (c) 2011-2014, Wind River Systems, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -253,15 +255,28 @@ extern "C" {
 /**
  * @brief Value of @p x rounded up to the next multiple of @p align.
  */
-#define ROUND_UP(x, align)                                   \
+#ifdef __CHERI_PURE_CAPABILITY__
+/* maintain pointer type otherwise will result in pointer that can not be dereferenced */
+  #define ROUND_UP(x, align)                                   \
+	((((uintptr_t)(x) + ((uintptr_t)(align) - (uintptr_t)1)) / \
+	  (uintptr_t)(align)) * (uintptr_t)(align))
+#else
+  #define ROUND_UP(x, align)                                   \
 	((((unsigned long)(x) + ((unsigned long)(align) - 1)) / \
 	  (unsigned long)(align)) * (unsigned long)(align))
+#endif
 
 /**
  * @brief Value of @p x rounded down to the previous multiple of @p align.
  */
-#define ROUND_DOWN(x, align)                                 \
+#ifdef __CHERI_PURE_CAPABILITY__
+ /* maintain pointer type otherwise will result in pointer that can not be dereferenced */
+   #define ROUND_DOWN(x, align)                                 \
+	(((uintptr_t)(x) / (uintptr_t)(align)) * (uintptr_t)(align))
+ #else
+   #define ROUND_DOWN(x, align)                                 \
 	(((unsigned long)(x) / (unsigned long)(align)) * (unsigned long)(align))
+ #endif
 
 /** @brief Value of @p x rounded up to the next word boundary. */
 #define WB_UP(x) ROUND_UP(x, sizeof(void *))

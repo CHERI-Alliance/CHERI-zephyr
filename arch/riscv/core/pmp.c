@@ -23,6 +23,8 @@
  * Thread-specific m-mode and u-mode PMP entries start from the PMP slot
  * indicated by global_pmp_end_index. Lower slots are used by global entries
  * which are never modified.
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -196,7 +198,12 @@ static bool set_pmp_entry(unsigned int *index_p, uint8_t perm,
 		pmp_n_cfg[index] = perm | PMP_TOR;
 		index += 1;
 	} else {
+		#ifdef __CHERI_PURE_CAPABILITY__
+		/* to print unsigned long we need to cast from pointer type to unsigned long which are different sizes in CHERI*/
+		LOG_ERR("inappropriate PMP range (start=%#lx size=%#zx)", (unsigned long)start, size);
+		#else
 		LOG_ERR("inappropriate PMP range (start=%#lx size=%#zx)", start, size);
+		#endif
 		ok = false;
 	}
 

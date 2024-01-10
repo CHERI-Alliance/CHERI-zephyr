@@ -3,6 +3,8 @@
  * Copyright (c) 2020 BayLibre, SAS
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -35,10 +37,17 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 				);
 
 	/* Setup the initial stack frame */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	stack_init->ca0 = (uintptr_t)entry;
+	stack_init->ca1 = (uintptr_t)p1;
+	stack_init->ca2 = (uintptr_t)p2;
+	stack_init->ca3 = (uintptr_t)p3;
+	#else
 	stack_init->a0 = (unsigned long)entry;
 	stack_init->a1 = (unsigned long)p1;
 	stack_init->a2 = (unsigned long)p2;
 	stack_init->a3 = (unsigned long)p3;
+	#endif
 
 	/*
 	 * Following the RISC-V architecture,
@@ -83,11 +92,19 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 	if (IS_ENABLED(CONFIG_USERSPACE)
 	    && (thread->base.user_options & K_USER)) {
 		/* User thread */
+		#ifdef __CHERI_PURE_CAPABILITY__
+		stack_init->mepcc = (uintptr_t)k_thread_user_mode_enter;
+		#else
 		stack_init->mepc = (unsigned long)k_thread_user_mode_enter;
+		#endif
 
 	} else {
 		/* Supervisor thread */
+		#ifdef __CHERI_PURE_CAPABILITY__
+		stack_init->mepcc = (uintptr_t)z_thread_entry;
+		#else
 		stack_init->mepc = (unsigned long)z_thread_entry;
+		#endif
 
 #if defined(CONFIG_PMP_STACK_GUARD)
 		/* Enable PMP in mstatus.MPRV mode for RISC-V machine mode
@@ -105,11 +122,18 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 #ifdef CONFIG_RISCV_SOC_CONTEXT_SAVE
 	stack_init->soc_context = soc_esf_init;
 #endif
+	#ifdef __CHERI_PURE_CAPABILITY__
+	thread->callee_saved.csp = (uintptr_t)stack_init;
 
+	/* where to go when returning from z_riscv_switch() */
+	thread->callee_saved.cra = (uintptr_t)z_riscv_thread_start;
+
+	#else
 	thread->callee_saved.sp = (unsigned long)stack_init;
 
 	/* where to go when returning from z_riscv_switch() */
 	thread->callee_saved.ra = (unsigned long)z_riscv_thread_start;
+	#endif
 
 	/* our switch handle is the thread pointer itself */
 	thread->switch_handle = thread;
@@ -127,18 +151,33 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 					void *p1, void *p2, void *p3)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* address */
+	uintptr_t top_of_user_stack, top_of_priv_stack;
+	#else
 	unsigned long top_of_user_stack, top_of_priv_stack;
+	#endif
 	unsigned long status;
 
 	/* Set up privileged stack */
 #ifdef CONFIG_GEN_PRIV_STACKS
+	#ifdef __CHERI_PURE_CAPABILITY__
+	_current->arch.priv_stack_start =
+			(uintptr_t)z_priv_stack_find(_current->stack_obj);
+	#else
 	_current->arch.priv_stack_start =
 			(unsigned long)z_priv_stack_find(_current->stack_obj);
+	#endif
 	/* remove the stack guard from the main stack */
 	_current->stack_info.start -= K_THREAD_STACK_RESERVED;
 	_current->stack_info.size += K_THREAD_STACK_RESERVED;
 #else
+	#ifdef __CHERI_PURE_CAPABILITY__
+	_current->arch.priv_stack_start = (uintptr_t)_current->stack_obj;
+	#else
 	_current->arch.priv_stack_start = (unsigned long)_current->stack_obj;
+	#endif
+
 #endif /* CONFIG_GEN_PRIV_STACKS */
 	top_of_priv_stack = Z_STACK_PTR_ALIGN(_current->arch.priv_stack_start +
 					      K_KERNEL_STACK_RESERVED +
@@ -159,7 +198,11 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 	status = INSERT_FIELD(status, MSTATUS_MIE, 0);
 
 	csr_write(mstatus, status);
+	#ifdef __CHERI_PURE_CAPABILITY__
+	csr_cap_write(mepcc, z_thread_entry);
+	#else
 	csr_write(mepc, z_thread_entry);
+	#endif
 
 #ifdef CONFIG_PMP_STACK_GUARD
 	/* reconfigure as the kernel mode stack will be different */
@@ -175,6 +218,18 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 
 	is_user_mode = true;
 
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register void *ca0 __asm__("ca0") = user_entry;
+	register void *ca1 __asm__("ca1") = p1;
+	register void *ca2 __asm__("ca2") = p2;
+	register void *ca3 __asm__("ca3") = p3;
+
+	__asm__ volatile (
+	"cmove csp, %4; mret"
+	:
+	: "r" (ca0), "r" (ca1), "r" (ca2), "r" (ca3), "r" (top_of_user_stack)
+	: "memory");
+	#else
 	register void *a0 __asm__("a0") = user_entry;
 	register void *a1 __asm__("a1") = p1;
 	register void *a2 __asm__("a2") = p2;
@@ -185,6 +240,7 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 	:
 	: "r" (a0), "r" (a1), "r" (a2), "r" (a3), "r" (top_of_user_stack)
 	: "memory");
+	#endif
 
 	CODE_UNREACHABLE;
 }
@@ -212,11 +268,22 @@ FUNC_NORETURN void z_riscv_switch_to_main_no_multithreading(k_thread_entry_t mai
 	main_stack = (Z_THREAD_STACK_BUFFER(z_main_stack) +
 		      K_THREAD_STACK_SIZEOF(z_main_stack));
 
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0") = (uintptr_t)main_entry;
+	register uintptr_t ca1 __asm__ ("ca1") = (uintptr_t)main_stack;
+
+	__asm__ volatile (
+	"cmove csp, %0; cjalr cra, %1, 0"
+	:
+	: "r" (ca1), "r" (ca0)
+	: "memory");
+	#else
 	__asm__ volatile (
 	"mv sp, %0; jalr ra, %1, 0"
 	:
 	: "r" (main_stack), "r" (main_entry)
 	: "memory");
+	#endif
 
 	/* infinite loop */
 	irq_lock();

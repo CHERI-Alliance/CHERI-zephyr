@@ -2,6 +2,8 @@
  * Copyright (c) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef ZEPHYR_INCLUDE_ARCH_RISCV_ARCH_INLINES_H_
@@ -20,7 +22,11 @@ static ALWAYS_INLINE uint32_t arch_proc_id(void)
 static ALWAYS_INLINE _cpu_t *arch_curr_cpu(void)
 {
 #if defined(CONFIG_SMP) || defined(CONFIG_USERSPACE)
+	#ifdef __CHERI_PURE_CAPABILITY__
+	return (_cpu_t *)csr_cap_read(mscratchc);
+	#else
 	return (_cpu_t *)csr_read(mscratch);
+	#endif
 #else
 	return &_kernel.cpus[0];
 #endif

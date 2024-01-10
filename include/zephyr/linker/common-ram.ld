@@ -1,4 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Modified to support CHERI 2023, University of Birmingham
+ */
+
 
 #include <zephyr/linker/iterable_sections.h>
 
@@ -53,10 +57,17 @@
 #include "device-deps.ld"
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 #endif 	/* CONFIG_DEVICE_DEPS_DYNAMIC */
-
+	#ifdef CONFIG_CHERI
+	/* For 64 bit CHERI any sections storing capabilities need to be 16 byte aligned  */
+	ITERABLE_SECTION_RAM_GC_ALLOWED(log_mpsc_pbuf, 16)
+	ITERABLE_SECTION_RAM(log_msg_ptr, 16)
+	/* keep this section aligned to 4 bytes - the log_dynamic structure for each data is 8 bytes for RISCV64 */
+	ITERABLE_SECTION_RAM(log_dynamic, 4)
+	#else
 	ITERABLE_SECTION_RAM_GC_ALLOWED(log_mpsc_pbuf, 4)
 	ITERABLE_SECTION_RAM(log_msg_ptr, 4)
 	ITERABLE_SECTION_RAM(log_dynamic, 4)
+	#endif
 
 #ifdef CONFIG_USERSPACE
 	/* All kernel objects within are assumed to be either completely
@@ -77,7 +88,12 @@
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_msgq, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mbox, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_pipe, 4)
+	#ifdef CONFIG_CHERI
+	/* For 64 bit CHERI any sections storing capabilities need to be 16 byte aligned  */
+	ITERABLE_SECTION_RAM_GC_ALLOWED(k_sem, 16)
+	#else
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_sem, 4)
+	#endif
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_event, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_queue, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_fifo, 4)

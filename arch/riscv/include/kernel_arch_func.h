@@ -2,6 +2,8 @@
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -27,10 +29,20 @@ extern "C" {
 static ALWAYS_INLINE void arch_kernel_init(void)
 {
 #ifdef CONFIG_THREAD_LOCAL_STORAGE
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* cap thread pointer */
+	__asm__ volatile ("li ctp, 0");
+	#else
 	__asm__ volatile ("li tp, 0");
+	#endif
+
 #endif
 #if defined(CONFIG_SMP) || defined(CONFIG_USERSPACE)
+	#ifdef __CHERI_PURE_CAPABILITY__
+	csr_cap_write(mscratchc, &_kernel.cpus[0]);
+	#else
 	csr_write(mscratch, &_kernel.cpus[0]);
+	#endif
 #endif
 #ifdef CONFIG_SMP
 	_kernel.cpus[0].arch.hartid = csr_read(mhartid);

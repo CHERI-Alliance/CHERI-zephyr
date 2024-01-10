@@ -2,6 +2,8 @@
  * Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /*
@@ -31,7 +33,11 @@ SECTION_FUNC(exception.other, __soc_handle_irq)
 	csrrc t1, mip, t0
 
 	/* Return */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	cret
+	#else
 	ret
+	#endif
 
 /*
  * __soc_is_irq is defined as .weak to allow re-implementation by
@@ -58,4 +64,9 @@ SECTION_FUNC(exception.other, __soc_is_irq)
 
 not_interrupt:
 	/* return */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	cret
+	#else
 	ret
+	#endif
+

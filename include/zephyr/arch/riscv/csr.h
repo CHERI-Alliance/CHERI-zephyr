@@ -4,6 +4,8 @@
  *
  * SPDX-License-Identifier: SHL-0.51
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef CSR_H_
@@ -184,52 +186,73 @@
 
 #define csr_read(csr)						\
 ({								\
-	register unsigned long __rv;				\
+	register unsigned long __v;				\
 	__asm__ volatile ("csrr %0, " STRINGIFY(csr)		\
-				: "=r" (__rv));			\
-	__rv;							\
+				: "=r" (__v));			\
+	__v;							\
 })
+
+#ifdef __CHERI_PURE_CAPABILITY__
+/* read special cap register */
+#define csr_cap_read(csr)						\
+({								\
+	register uintptr_t __v __asm__ ("ca0"); \
+	__asm__ volatile ("cspecialr %0, " STRINGIFY(csr)		\
+				: "=r" (__v));			\
+	__v;							\
+})
+#endif
 
 #define csr_write(csr, val)					\
 ({								\
-	unsigned long __wv = (unsigned long)(val);		\
+	unsigned long __v = (unsigned long)(val);		\
 	__asm__ volatile ("csrw " STRINGIFY(csr) ", %0"		\
-				: : "rK" (__wv)			\
+				: : "rK" (__v)			\
 				: "memory");			\
 })
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* write special cap register */
+#define csr_cap_write(csr, val)					\
+({				\
+	register uintptr_t __v __asm__ ("ca0") = (uintptr_t)val;	\
+	__asm__ volatile ("cspecialw " STRINGIFY(csr) ", %0"		\
+				: : "rK" (__v)		\
+				: "memory");			\
+})
+#endif
 
 #define csr_read_set(csr, val)					\
 ({								\
-	unsigned long __rsv = (unsigned long)(val);		\
+	unsigned long __v = (unsigned long)(val);		\
 	__asm__ volatile ("csrrs %0, " STRINGIFY(csr) ", %1"	\
-				: "=r" (__rsv) : "rK" (__rsv)	\
+				: "=r" (__v) : "rK" (__v)	\
 				: "memory");			\
-	__rsv;							\
+	__v;							\
 })
 
 #define csr_set(csr, val)					\
 ({								\
-	unsigned long __sv = (unsigned long)(val);		\
+	unsigned long __v = (unsigned long)(val);		\
 	__asm__ volatile ("csrs " STRINGIFY(csr) ", %0"		\
-				: : "rK" (__sv)			\
+				: : "rK" (__v)			\
 				: "memory");			\
 })
 
 #define csr_read_clear(csr, val)				\
 ({								\
-	unsigned long __rcv = (unsigned long)(val);		\
+	unsigned long __v = (unsigned long)(val);		\
 	__asm__ volatile ("csrrc %0, " STRINGIFY(csr) ", %1"	\
-				: "=r" (__rcv) : "rK" (__rcv)	\
+				: "=r" (__v) : "rK" (__v)	\
 				: "memory");			\
-	__rcv;							\
+	__v;							\
 })
 
 #define csr_clear(csr, val)					\
 ({								\
-	unsigned long __cv = (unsigned long)(val);		\
+	unsigned long __v = (unsigned long)(val);		\
 	__asm__ volatile ("csrc " STRINGIFY(csr) ", %0"		\
-				: : "rK" (__cv)			\
+				: : "rK" (__v)			\
 				: "memory");			\
 })
 

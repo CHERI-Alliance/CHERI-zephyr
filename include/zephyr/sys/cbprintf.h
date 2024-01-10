@@ -2,6 +2,8 @@
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef ZEPHYR_INCLUDE_SYS_CBPRINTF_H_
@@ -85,8 +87,11 @@ union cbprintf_package_hdr {
 	void *raw2[2];
 #endif
 
+#ifdef __CHERI_PURE_CAPABILITY__
+} __aligned(16);
+#else
 } __packed;
-
+#endif
 
 
 /** @brief cbprintf package header with format string pointer.
@@ -104,7 +109,11 @@ struct cbprintf_package_hdr_ext {
 	 * When extending this struct, make sure this align
 	 * to pointer size.
 	 */
+#ifdef __CHERI_PURE_CAPABILITY__
+} __aligned(16);
+#else
 } __packed;
+#endif
 
 
 /**
@@ -134,6 +143,10 @@ extern "C" {
  */
 
 /** @brief Required alignment of the buffer used for packaging. */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* 16 byte aligned for 64bit CHERI */
+#define CBPRINTF_PACKAGE_ALIGNMENT 16
+#else
 #ifdef __xtensa__
 #define CBPRINTF_PACKAGE_ALIGNMENT 16
 #else
@@ -141,7 +154,7 @@ extern "C" {
 	Z_POW2_CEIL(COND_CODE_1(CONFIG_CBPRINTF_PACKAGE_LONGDOUBLE, \
 		(sizeof(long double)), (MAX(sizeof(double), sizeof(long long)))))
 #endif
-
+#endif
 BUILD_ASSERT(Z_IS_POW2(CBPRINTF_PACKAGE_ALIGNMENT));
 
 

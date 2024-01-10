@@ -3,6 +3,8 @@
  * Contributors: 2018 Antmicro <www.antmicro.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #define DT_DRV_COMPAT sifive_plic_1_0_0
@@ -21,7 +23,21 @@
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define PLIC_MMAP_LENGTH 0x4000000 /* length of plic memory map according to RISCV PLIC specs. See below */
+extern void *mmdev_root_cap; /* root capability of the device memory map */
+/*
+ * Define base address as a capability, and set bounds.
+ * Permissions are set on the device memory mmdev_root_cap.
+ */
+#define PLIC_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define PLIC_BASE_ADDR(n)  __builtin_cheri_bounds_set(PLIC_BASE_ADDR_SET(n), PLIC_MMAP_LENGTH)
+#else
 #define PLIC_BASE_ADDR(n) DT_INST_REG_ADDR(n)
+#endif /*__CHERI_PURE_CAPABILITY__ */
+
+
 /*
  * These registers' offset are defined in the RISCV PLIC specs, see:
  * https://github.com/riscv/riscv-plic-spec
@@ -165,7 +181,22 @@ int riscv_plic_get_irq(void)
 	return save_irq;
 }
 
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static ISR function head here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+#ifdef CONFIG_RISCV
+void plic_irq_handler(const void *arg)
+#endif /*CONFIG_RISCV*/
+#else
 static void plic_irq_handler(const void *arg)
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 {
 	volatile struct plic_regs_t *regs =
 	    (volatile struct plic_regs_t *) PLIC_REG;

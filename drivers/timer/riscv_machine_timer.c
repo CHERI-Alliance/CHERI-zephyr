@@ -2,6 +2,8 @@
  * Copyright (c) 2018-2023 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <limits.h>
@@ -13,64 +15,159 @@
 #include <zephyr/spinlock.h>
 #include <zephyr/irq.h>
 
+/* For CHERI we need to set the device memory base address as a capability with the correct bounds and permissions */
+/* Import the device memory map capability*/
+#ifdef __CHERI_PURE_CAPABILITY__
+extern void *mmdev_root_cap;
+#endif
+
 /* andestech,machine-timer */
 #if DT_HAS_COMPAT_STATUS_OKAY(andestech_machine_timer)
 #define DT_DRV_COMPAT andestech_machine_timer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_REG	MTIME_BASE_ADDR(0)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+#else
 #define MTIME_REG	DT_INST_REG_ADDR(0)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* neorv32-machine-timer */
 #elif DT_HAS_COMPAT_STATUS_OKAY(neorv32_machine_timer)
 #define DT_DRV_COMPAT neorv32_machine_timer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_REG	MTIME_BASE_ADDR(0)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+#else
 #define MTIME_REG	DT_INST_REG_ADDR(0)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* nuclei,systimer */
 #elif DT_HAS_COMPAT_STATUS_OKAY(nuclei_systimer)
 #define DT_DRV_COMPAT nuclei_systimer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_REG	MTIME_BASE_ADDR(0)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
+#define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
+#else
 #define MTIME_REG	DT_INST_REG_ADDR(0)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* sifive,clint0 */
 #elif DT_HAS_COMPAT_STATUS_OKAY(sifive_clint0)
 #define DT_DRV_COMPAT sifive_clint0
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x0000c000 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_REG	(MTIME_BASE_ADDR(0) + 0xbff8U)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 0x4000U)
+#define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
+#else
 #define MTIME_REG	(DT_INST_REG_ADDR(0) + 0xbff8U)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR(0) + 0x4000U)
 #define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* telink,machine-timer */
 #elif DT_HAS_COMPAT_STATUS_OKAY(telink_machine_timer)
 #define DT_DRV_COMPAT telink_machine_timer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_REG	MTIME_BASE_ADDR(0)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+#else
 #define MTIME_REG	DT_INST_REG_ADDR(0)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* lowrisc,machine-timer */
 #elif DT_HAS_COMPAT_STATUS_OKAY(lowrisc_machine_timer)
 #define DT_DRV_COMPAT lowrisc_machine_timer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000120 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_REG	(MTIME_BASE_ADDR(0) + 0x110)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 0x118)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+#else
 #define MTIME_REG	(DT_INST_REG_ADDR(0) + 0x110)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR(0) + 0x118)
 #define TIMER_IRQN	DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* niosv-machine-timer */
 #elif DT_HAS_COMPAT_STATUS_OKAY(niosv_machine_timer)
 #define DT_DRV_COMPAT niosv_machine_timer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIMECMP_REG	MTIME_BASE_ADDR(0)
+#define MTIME_REG	(MTIME_BASE_ADDR(0) + 8)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+#else
 #define MTIMECMP_REG	DT_INST_REG_ADDR(0)
 #define MTIME_REG	(DT_INST_REG_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* scr,machine-timer*/
 #elif DT_HAS_COMPAT_STATUS_OKAY(scr_machine_timer)
 #define DT_DRV_COMPAT scr_machine_timer
 #define MTIMER_HAS_DIVIDER
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define MTIME_MMAP_LENGTH 0x00000020 /* length of memory map */
+#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR_U64(n))
+#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIMEDIV_REG	(MTIME_BASE_ADDR(0) + 4)
+#define MTIME_REG	(MTIME_BASE_ADDR(0) + 8)
+#define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 16)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+#else
 #define MTIMEDIV_REG	(DT_INST_REG_ADDR_U64(0) + 4)
 #define MTIME_REG	(DT_INST_REG_ADDR_U64(0) + 8)
 #define MTIMECMP_REG	(DT_INST_REG_ADDR_U64(0) + 16)
 #define TIMER_IRQN	DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 #endif
 
 #define CYC_PER_TICK (uint32_t)(sys_clock_hw_cycles_per_sec() \
@@ -138,7 +235,22 @@ static uint64_t mtime(void)
 #endif
 }
 
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static function head here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+#ifdef CONFIG_RISCV
+void timer_isr(const void *arg)
+#endif /*CONFIG_RISCV*/
+#else
 static void timer_isr(const void *arg)
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 {
 	ARG_UNUSED(arg);
 

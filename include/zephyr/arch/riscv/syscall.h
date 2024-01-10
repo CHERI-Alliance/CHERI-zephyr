@@ -2,6 +2,8 @@
  * Copyright (c) 2020 BayLibre, SAS
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -41,6 +43,26 @@ static inline uintptr_t arch_syscall_invoke6(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg5, uintptr_t arg6,
 					     uintptr_t call_id)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * The capability registers are always the size of a pointer which is bigger
+	 * than an unsigned long for CHERI.
+	 */
+	register uintptr_t ca0 __asm__ ("ca0") = arg1;
+	register uintptr_t ca1 __asm__ ("ca1") = arg2;
+	register uintptr_t ca2 __asm__ ("ca2") = arg3;
+	register uintptr_t ca3 __asm__ ("ca3") = arg4;
+	register uintptr_t ca4 __asm__ ("ca4") = arg5;
+	register uintptr_t ca5 __asm__ ("ca5") = arg6;
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "+r" (ca0)
+			  : "r" (ca1), "r" (ca2), "r" (ca3), "r" (ca4), "r" (ca5),
+			  "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0") = arg1;
 	register unsigned long a1 __asm__ ("a1") = arg2;
 	register unsigned long a2 __asm__ ("a2") = arg3;
@@ -55,6 +77,7 @@ static inline uintptr_t arch_syscall_invoke6(uintptr_t arg1, uintptr_t arg2,
 			  "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 static inline uintptr_t arch_syscall_invoke5(uintptr_t arg1, uintptr_t arg2,
@@ -62,6 +85,20 @@ static inline uintptr_t arch_syscall_invoke5(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg5,
 					     uintptr_t call_id)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0") = arg1;
+	register uintptr_t ca1 __asm__ ("ca1") = arg2;
+	register uintptr_t ca2 __asm__ ("ca2") = arg3;
+	register uintptr_t ca3 __asm__ ("ca3") = arg4;
+	register uintptr_t ca4 __asm__ ("ca4") = arg5;
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "+r" (ca0)
+			  : "r" (ca1), "r" (ca2), "r" (ca3), "r" (ca4), "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0") = arg1;
 	register unsigned long a1 __asm__ ("a1") = arg2;
 	register unsigned long a2 __asm__ ("a2") = arg3;
@@ -74,12 +111,26 @@ static inline uintptr_t arch_syscall_invoke5(uintptr_t arg1, uintptr_t arg2,
 			  : "r" (a1), "r" (a2), "r" (a3), "r" (a4), "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 static inline uintptr_t arch_syscall_invoke4(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg3, uintptr_t arg4,
 					     uintptr_t call_id)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0") = arg1;
+	register uintptr_t ca1 __asm__ ("ca1") = arg2;
+	register uintptr_t ca2 __asm__ ("ca2") = arg3;
+	register uintptr_t ca3 __asm__ ("ca3") = arg4;
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "+r" (ca0)
+			  : "r" (ca1), "r" (ca2), "r" (ca3), "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0") = arg1;
 	register unsigned long a1 __asm__ ("a1") = arg2;
 	register unsigned long a2 __asm__ ("a2") = arg3;
@@ -91,12 +142,25 @@ static inline uintptr_t arch_syscall_invoke4(uintptr_t arg1, uintptr_t arg2,
 			  : "r" (a1), "r" (a2), "r" (a3), "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 static inline uintptr_t arch_syscall_invoke3(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg3,
 					     uintptr_t call_id)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0") = arg1;
+	register uintptr_t ca1 __asm__ ("ca1") = arg2;
+	register uintptr_t ca2 __asm__ ("ca2") = arg3;
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "+r" (ca0)
+			  : "r" (ca1), "r" (ca2), "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0") = arg1;
 	register unsigned long a1 __asm__ ("a1") = arg2;
 	register unsigned long a2 __asm__ ("a2") = arg3;
@@ -107,11 +171,24 @@ static inline uintptr_t arch_syscall_invoke3(uintptr_t arg1, uintptr_t arg2,
 			  : "r" (a1), "r" (a2), "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 static inline uintptr_t arch_syscall_invoke2(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t call_id)
 {
+
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0") = arg1;
+	register uintptr_t ca1 __asm__ ("ca1") = arg2;
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "+r" (ca0)
+			  : "r" (ca1), "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0") = arg1;
 	register unsigned long a1 __asm__ ("a1") = arg2;
 	register unsigned long t0 __asm__ ("t0") = call_id;
@@ -121,10 +198,21 @@ static inline uintptr_t arch_syscall_invoke2(uintptr_t arg1, uintptr_t arg2,
 			  : "r" (a1), "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 static inline uintptr_t arch_syscall_invoke1(uintptr_t arg1, uintptr_t call_id)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0") = arg1;
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "+r" (ca0)
+			  : "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0") = arg1;
 	register unsigned long t0 __asm__ ("t0") = call_id;
 
@@ -133,10 +221,21 @@ static inline uintptr_t arch_syscall_invoke1(uintptr_t arg1, uintptr_t call_id)
 			  : "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 static inline uintptr_t arch_syscall_invoke0(uintptr_t call_id)
 {
+	#ifdef __CHERI_PURE_CAPABILITY__
+	register uintptr_t ca0 __asm__ ("ca0");
+	register uintptr_t ct0 __asm__ ("ct0") = call_id;
+
+	__asm__ volatile ("ecall"
+			  : "=r" (ca0)
+			  : "r" (ct0)
+			  : "memory");
+	return ca0;
+	#else
 	register unsigned long a0 __asm__ ("a0");
 	register unsigned long t0 __asm__ ("t0") = call_id;
 
@@ -145,17 +244,31 @@ static inline uintptr_t arch_syscall_invoke0(uintptr_t call_id)
 			  : "r" (t0)
 			  : "memory");
 	return a0;
+	#endif
 }
 
 #ifdef CONFIG_USERSPACE
+
+#ifdef __CHERI_PURE_CAPABILITY__
+register uintptr_t riscv_ctp_reg __asm__ ("ctp");
+#else
 register unsigned long riscv_tp_reg __asm__ ("tp");
+#endif
 
 static inline bool arch_is_user_context(void)
 {
 	/* don't try accessing TLS variables if tp is not initialized */
+
+	#ifdef __CHERI_PURE_CAPABILITY__
+	if (riscv_ctp_reg == 0) {
+		return false;
+	}
+	#else
 	if (riscv_tp_reg == 0) {
 		return false;
 	}
+	#endif
+
 
 	/* Defined in arch/riscv/core/thread.c */
 	extern __thread uint8_t is_user_mode;

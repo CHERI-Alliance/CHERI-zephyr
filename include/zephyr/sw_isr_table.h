@@ -2,6 +2,8 @@
  * Copyright (c) 2014, Wind River Systems, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -21,6 +23,22 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static function declaration here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+#ifdef CONFIG_RISCV
+void timer_isr(const void *arg);
+void plic_irq_handler(const void *arg);
+#endif /*CONFIG_RISCV*/
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 
 /* Default vector for the IRQ vector table */
 void _isr_wrapper(void);
@@ -97,10 +115,20 @@ unsigned int z_get_sw_isr_table_idx(unsigned int irq);
  * section. This gets consumed by gen_isr_tables.py which creates the vector
  * and/or SW ISR tables.
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/*For CHERI we want to maintain an integer address rather than turning it into a capability (as you can't write capabilities directly to an elf file) */
+/*so that the gen_isr_tables.py can look up the fixed address and turn it into a symbol from the symbol table */
+#define Z_ISR_DECLARE(irq, flags, func, param) \
+	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \
+		__used _MK_ISR_NAME(func, __COUNTER__) = \
+			{irq, flags, (unsigned long)&func, (const void *)param}
+#else
 #define Z_ISR_DECLARE(irq, flags, func, param) \
 	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \
 		__used _MK_ISR_NAME(func, __COUNTER__) = \
 			{irq, flags, (void *)&func, (const void *)param}
+#endif
+
 
 #define IRQ_TABLE_SIZE (CONFIG_NUM_IRQS - CONFIG_GEN_IRQ_START_VECTOR)
 

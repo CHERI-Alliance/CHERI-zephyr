@@ -2,6 +2,8 @@
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -10,6 +12,10 @@
 #include <inttypes.h>
 #include <zephyr/arch/common/exc_handle.h>
 #include <zephyr/logging/log.h>
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <stddef.h>
+#define CHERI_MASK 0x1f
+#endif
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 #ifdef CONFIG_USERSPACE
@@ -32,25 +38,56 @@ FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
 				       const z_arch_esf_t *esf)
 {
 	if (esf != NULL) {
+		#ifdef __CHERI_PURE_CAPABILITY__
+		/* cast to unsigned long before printing or change PR_REG format */
+		/* to print unsigned long we need to cast from pointer type to unsigned long which are different sizes in CHERI*/
+		LOG_ERR("     ca0: " PR_REG "    ct0: " PR_REG, (unsigned long)esf->ca0, (unsigned long)esf->ct0);
+		LOG_ERR("     ca1: " PR_REG "    ct1: " PR_REG, (unsigned long)esf->ca1, (unsigned long)esf->ct1);
+		LOG_ERR("     ca2: " PR_REG "    ct2: " PR_REG, (unsigned long)esf->ca2, (unsigned long)esf->ct2);
+		#else
 		LOG_ERR("     a0: " PR_REG "    t0: " PR_REG, esf->a0, esf->t0);
 		LOG_ERR("     a1: " PR_REG "    t1: " PR_REG, esf->a1, esf->t1);
 		LOG_ERR("     a2: " PR_REG "    t2: " PR_REG, esf->a2, esf->t2);
+		#endif
 #if defined(CONFIG_RISCV_ISA_RV32E)
+		#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     ca3: " PR_REG, (unsigned long)esf->ca3);
+		LOG_ERR("     ca4: " PR_REG, (unsigned long)esf->ca4);
+		LOG_ERR("     ca5: " PR_REG, (unsigned long)esf->ca5);
+		#else
 		LOG_ERR("     a3: " PR_REG, esf->a3);
 		LOG_ERR("     a4: " PR_REG, esf->a4);
 		LOG_ERR("     a5: " PR_REG, esf->a5);
+		#endif
 #else
+		#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     ca3: " PR_REG "    ct3: " PR_REG, (unsigned long)esf->ca3, (unsigned long)esf->ct3);
+		LOG_ERR("     ca4: " PR_REG "    ct4: " PR_REG, (unsigned long)esf->ca4, (unsigned long)esf->ct4);
+		LOG_ERR("     ca5: " PR_REG "    ct5: " PR_REG, (unsigned long)esf->ca5, (unsigned long)esf->ct5);
+		LOG_ERR("     ca6: " PR_REG "    ct6: " PR_REG, (unsigned long)esf->ca6, (unsigned long)esf->ct6);
+		LOG_ERR("     ca7: " PR_REG, (unsigned long)esf->ca7);
+		#else
 		LOG_ERR("     a3: " PR_REG "    t3: " PR_REG, esf->a3, esf->t3);
 		LOG_ERR("     a4: " PR_REG "    t4: " PR_REG, esf->a4, esf->t4);
 		LOG_ERR("     a5: " PR_REG "    t5: " PR_REG, esf->a5, esf->t5);
 		LOG_ERR("     a6: " PR_REG "    t6: " PR_REG, esf->a6, esf->t6);
 		LOG_ERR("     a7: " PR_REG, esf->a7);
+		#endif
 #endif /* CONFIG_RISCV_ISA_RV32E */
 #ifdef CONFIG_USERSPACE
+		#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     csp: " PR_REG, (unsigned long)esf->csp);
+		#else
 		LOG_ERR("     sp: " PR_REG, esf->sp);
+		#endif
 #endif
+		#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     cra: " PR_REG, (unsigned long)esf->cra);
+		LOG_ERR("   mepcc: " PR_REG, (unsigned long)esf->mepcc);
+		#else
 		LOG_ERR("     ra: " PR_REG, esf->ra);
 		LOG_ERR("   mepc: " PR_REG, esf->mepc);
+		#endif
 		LOG_ERR("mstatus: " PR_REG, esf->mstatus);
 		LOG_ERR("");
 	}
@@ -90,10 +127,72 @@ static char *cause_str(unsigned long cause)
 		return "Load page fault";
 	case 15:
 		return "Store/AMO page fault";
+
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* see CHERI spec - riscv */
+	case 26:
+		return "Load capability page fault";
+	case 27:
+		return "Store/AMO capability page fault";
+	case 28:
+		return "CHERI exception";
+	#endif
+
 	default:
 		return "unknown";
 	}
 }
+
+#ifdef __CHERI_PURE_CAPABILITY__
+static char *cap_cause_str(unsigned long mtval)
+{
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/*  see CHERI spec - riscv */
+
+	uint8_t exccode;
+
+	exccode = mtval & CHERI_MASK;
+	switch (exccode) {
+	case 0x01:
+		return "CHERI length violation";
+	case 0x02:
+		return "CHERI tag violation";
+	case 0x03:
+		return "CHERI seal violation";
+	case 0x04:
+		return "CHERI type violation";
+	case 0x11:
+	case 0x12:
+	case 0x13:
+	case 0x14:
+	case 0x15:
+	case 0x17:
+	case 0x1b:
+	case 0x08:
+	case 0x1c:
+		return "CHERI permissions violation";
+	case 0x0a:
+		return "CHERI bounds cannot be represented";
+	case 0x0b:
+		return "CHERI unaligned pcc base";
+	case 0x10:
+		return "CHERI global violation";
+	case 0x16:
+		return "CHERI permit store local capability violation";
+	case 0x19:
+		return "CHERI permit cinvoke violation";
+	case 0x18:
+		return "CHERI access system registers violation";
+	case 0x00:
+		return "none";
+	default:
+		return "CHERI exception - unknown code";
+		}
+	#else
+		return "Illegal operation - not in CHERI mode";
+	#endif
+}
+#endif
 
 static bool bad_stack_pointer(z_arch_esf_t *esf)
 {
@@ -127,6 +226,17 @@ static bool bad_stack_pointer(z_arch_esf_t *esf)
 #endif /* CONFIG_PMP_STACK_GUARD */
 
 #ifdef CONFIG_USERSPACE
+
+	#ifdef __CHERI_PURE_CAPABILITY__
+	if ((esf->mstatus & MSTATUS_MPP) == 0 &&
+	    (esf->csp < _current->stack_info.start ||
+	     esf->csp > _current->stack_info.start +
+		       _current->stack_info.size -
+		       _current->stack_info.delta)) {
+		/* user stack pointer moved outside of its allowed stack */
+		return true;
+	}
+	#else
 	if ((esf->mstatus & MSTATUS_MPP) == 0 &&
 	    (esf->sp < _current->stack_info.start ||
 	     esf->sp > _current->stack_info.start +
@@ -135,6 +245,7 @@ static bool bad_stack_pointer(z_arch_esf_t *esf)
 		/* user stack pointer moved outside of its allowed stack */
 		return true;
 	}
+	#endif
 #endif
 
 	return false;
@@ -150,11 +261,17 @@ void _Fault(z_arch_esf_t *esf)
 	for (int i = 0; i < ARRAY_SIZE(exceptions); i++) {
 		unsigned long start = (unsigned long)exceptions[i].start;
 		unsigned long end = (unsigned long)exceptions[i].end;
-
+		#ifdef __CHERI_PURE_CAPABILITY__
+		if (esf->mepcc >= start && esf->mepcc < end) {
+			esf->mepcc = (uintptr_t)exceptions[i].fixup;
+			return;
+		}
+		#else
 		if (esf->mepc >= start && esf->mepc < end) {
 			esf->mepc = (unsigned long)exceptions[i].fixup;
 			return;
 		}
+		#endif
 	}
 #endif /* CONFIG_USERSPACE */
 
@@ -164,6 +281,7 @@ void _Fault(z_arch_esf_t *esf)
 
 #ifndef CONFIG_SOC_OPENISA_RV32M1_RISCV32
 	unsigned long mtval;
+
 	__asm__ volatile("csrr %0, mtval" : "=r" (mtval));
 #endif
 
@@ -171,7 +289,12 @@ void _Fault(z_arch_esf_t *esf)
 	LOG_ERR("");
 	LOG_ERR(" mcause: %ld, %s", mcause, cause_str(mcause));
 #ifndef CONFIG_SOC_OPENISA_RV32M1_RISCV32
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* log specific CHERI violation */
+	LOG_ERR(" mtval: %ld, %s", mtval, cap_cause_str(mtval));
+	#else
 	LOG_ERR("  mtval: %lx", mtval);
+	#endif
 #endif
 
 	unsigned int reason = K_ERR_CPU_EXCEPTION;
