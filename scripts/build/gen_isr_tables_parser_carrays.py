@@ -70,19 +70,49 @@ typedef void (* ISR)(const void *);
 
         # Extract header and the rest of the data
         intlist_header_fmt = prefix + "II"
-        header_sz = struct.calcsize(intlist_header_fmt)
+
+        # For CHERI struct is 16 byte aligned (for 64 bit system) so there is some padding
+        # that needs to be factored in when unpacking the intList section
+        # I uint	num vectors 4 bytes
+        # I uint	offset 4 bytes
+        # q long long padding 8 bytes
+        if self.__config.check_sym("CONFIG_CHERI"):
+            intlist_header_fmt_pad = prefix + "IIq"
+            # For CHERI include padding in the header size calculation
+            header_sz = struct.calcsize(intlist_header_fmt_pad)
+        else:
+            header_sz = struct.calcsize(intlist_header_fmt)
+
         header_raw = struct.unpack_from(intlist_header_fmt, intlist_data, 0)
         self.__log.debug(str(header_raw))
 
         intlist["num_vectors"]    = header_raw[0]
         intlist["offset"]         = header_raw[1]
+        # For CHERI intdata is intdata(all section) minus the header (and padding if CHERI)
         intdata = intlist_data[header_sz:]
 
         # Extract information about interrupts
         if self.__config.check_64b():
-            intlist_entry_fmt = prefix + "iiQQ"
+            # For CHERI *func and *param are twice the length
+            # i int32 line number 4 bytes
+            # i int32 flags 4 bytes
+            # q long long padding alignment 8 bytes because capabilities are aligned to 16 byte boundary (assuming start of struct is aligned to 16 byte boundary)
+            # QQ 2*unsigned long *func 16 bytes
+            # QQ 2*unsigned long *param 16 bytes
+            if self.__config.check_sym("CONFIG_CHERI"):
+        	    intlist_entry_fmt = prefix + "iiqQQQQ"
+            else:
+        	    intlist_entry_fmt = prefix + "iiQQ"
         else:
             intlist_entry_fmt = prefix + "iiII"
+
+        #For CHERI add some extra debug info
+        if self.__config.check_sym("CONFIG_CHERI"):
+            self.__log.debug("header size inc. padding in bytes: \"{}\"".format(header_sz)) #add debug
+            self.__log.debug("header format inc. padding (q): \"{}\"".format(intlist_header_fmt_pad)) #add debug
+            #self.__log.debug("intdata: \"{}\"".format(intdata)) #add debug
+            self.__log.debug("intdata size in bytes: \"{}\"".format(len(intdata))) #add debug
+            self.__log.debug("indata format inc. padding (q): \"{}\"".format(intlist_entry_fmt)) #add debug
 
         intlist["interrupts"] = [i for i in
                 struct.iter_unpack(intlist_entry_fmt, intdata)]
@@ -91,9 +121,16 @@ typedef void (* ISR)(const void *);
         self.__log.debug("handler    irq flags param")
         self.__log.debug("--------------------------")
 
-        for irq in intlist["interrupts"]:
-            self.__log.debug("{0:<10} {1:<3} {2:<3}   {3}".format(
-                hex(irq[2]), irq[0], irq[1], hex(irq[3])))
+        #For CHERI we do not want to display padding or capability bounds info
+        if self.__config.check_sym("CONFIG_CHERI"):
+    	    #"iiqQQQQ" -> 0123456 inc CHERI padding, we only want to display 0135
+    	    for irq in intlist["interrupts"]:
+        	    self.__log.debug("{0:<10} {1:<3} {2:<3} {3} ".format(
+            	    	hex(irq[3]), irq[0], irq[1], hex(irq[5])))
+        else:
+            for irq in intlist["interrupts"]:
+                self.__log.debug("{0:<10} {1:<3} {2:<3}   {3}".format(
+                    hex(irq[2]), irq[0], irq[1], hex(irq[3])))
 
         return intlist
 
@@ -137,7 +174,28 @@ typedef void (* ISR)(const void *);
             swt = None
 
         # Process intlist and write to the tables created
-        for irq, flags, func, param in intlist["interrupts"]:
+        #for irq, flags, func, param in intlist["interrupts"]:
+        #------------------------------------------------
+        for paramlist in intlist["interrupts"]:
+            #For CHERI the parameter list is bigger because it includes padding and capability bounds
+            if self.__config.check_sym("CONFIG_CHERI"):
+                irq = paramlist[0]
+                flags = paramlist[1]
+                pad = paramlist[2]
+                func = paramlist[3]
+                func2 = paramlist[4]
+                param = paramlist[5]
+                param2 = paramlist[6]
+                self.__log.debug("paramlist - irq: \"{}\"".format(irq)) #add debug
+                self.__log.debug("paramlist - func: 0x{:X}".format(func)) #add debug
+                self.__log.debug("paramlist - param: 0x{:X}".format(param)) #add debug
+            else:
+                irq = paramlist[0]
+                flags = paramlist[1]
+                func = paramlist[2]
+                param = paramlist[3]
+        #-----------------------------
+
             if self.__config.test_isr_direct(flags):
                 if not vt:
                     self.__log.error("Direct Interrupt %d declared with parameter 0x%x "
@@ -277,7 +335,21 @@ typedef void (* ISR)(const void *);
                 func = self.__config.swt_shared_handler
 
             if isinstance(func, int):
-                func_as_string = "{0:#x}".format(func)
+                if self.__config.check_sym("CONFIG_ISR_TABLE_USE_SYMBOLS"):
+                    #CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities
+                    #if func is an integer address, we need the symbol name instead of converting the integer to a string
+                    #so we need to search for it in the symbol table
+                    func_as_string = "((uintptr_t)&"+self.__config.get_sym_from_addr(func)+")"
+                    self.__log.debug("use isr function symbol: \"{}\"".format(func_as_string))
+                    param_as_int = int(param, 16)
+                    if param_as_int != 0x0:
+                        #param as symbol
+                        param = "(&"+self.__config.get_sym_from_addr(param_as_int)+")"
+                        self.__log.debug("use isr object symbol: \"{}\"".format(param))
+                    else:
+                        self.__log.debug("param is NULL - use isr object address: \"{}\"".format(param))
+                else:
+                    func_as_string = "{0:#x}".format(func)
             else:
                 func_as_string = func
 

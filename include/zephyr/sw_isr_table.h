@@ -2,6 +2,8 @@
  * Copyright (c) 2014, Wind River Systems, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -24,6 +26,25 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static function declaration here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+#ifdef CONFIG_RISCV
+void timer_isr(const void *arg);
+void plic_irq_handler(const struct device *dev);
+#ifdef CONFIG_SMP
+void sched_ipi_handler(const void *unused);
+#endif /*CONFIG_SMP*/
+#endif /*CONFIG_RISCV*/
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 
 /* Default vector for the IRQ vector table */
 void _isr_wrapper(void);
@@ -142,10 +163,32 @@ struct _isr_list {
 	/** Flags for this IRQ, see ISR_FLAG_* definitions */
 	int32_t flags;
 	/** ISR to call */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* we need this to be an unsigned long for CHERI, not a capability pointer
+	 * so the python script (gen_isr_tables.py) can determine the symbol name from the integer address
+	 * This could work with or without padding with suitable corresponding adjustments to the
+	 * gen_isr_tables.py scripts. We keep the padding in for now and align the structure because
+	 * strictly with capabilities the memory size should be twice the length.
+	 * ToDo: It is more efficient to remove this padding and alignment and keep the format the same
+	 * as non-CHERI so less modifications are required to the build script. This can be done
+	 * because this _isr_list structure is only used to generate the code for the isr/IRQ tables
+	 * during the build process, and where the requirement will always be to use symbols instead
+	 * of fixed addresses for CHERI.
+	 */
+	unsigned long padding;
+	unsigned long func;
+	unsigned long padding2;
+	unsigned long param;
+	#else
 	void *func;
 	/** Parameter for non-direct IRQs */
 	const void *param;
+	#endif
+#ifdef __CHERI_PURE_CAPABILITY__
+} __aligned(16);
+#else
 };
+#endif
 
 /*
  * Data structure created in a special binary .intlist section for each
@@ -270,10 +313,21 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
  * section. This gets consumed by gen_isr_tables.py which creates the vector
  * and/or SW ISR tables.
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/*For CHERI we want to maintain an integer address rather than turning it into a capability (as you can't write capabilities directly to an elf file) */
+/*so that the gen_isr_tables.py can look up the fixed address and turn it into a symbol from the symbol table */
+#define Z_ISR_DECLARE(irq, flags, func, param) \
+	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \
+		__used _MK_ISR_NAME(func, __COUNTER__) = \
+			{irq, flags, (unsigned long)NULL, (unsigned long)&func, (unsigned long)NULL, (unsigned long)param}
+
+#else
 #define Z_ISR_DECLARE(irq, flags, func, param) \
 	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \
 		__used _MK_ISR_NAME(func, __COUNTER__) = \
 			{irq, flags, (void *)&func, (const void *)param}
+#endif
+
 
 /* The version of the Z_ISR_DECLARE that should be used for direct ISR declaration.
  * It is here for the API match the version with CONFIG_ISR_TABLES_LOCAL_DECLARATION enabled.

@@ -4,6 +4,8 @@
  * Copyright (c) 2020 BayLibre, SAS
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/toolchain.h>
@@ -26,20 +28,37 @@ GTEXT(z_riscv_user_string_nlen_fixup)
  */
 SECTION_FUNC(TEXT, arch_user_string_nlen)
 	li	a5, 0		# Counter
+	#ifdef __CHERI_PURE_CAPABILITY__
+	csw	a5, 0(ca2)	# Init error value to 0
+	#else
 	sw	a5, 0(a2)	# Init error value to 0
+	#endif
 
 loop:
+	#ifdef __CHERI_PURE_CAPABILITY__
+	cincoffset	ca4, ca0, a5	# Determine character address
+	#else
 	add	a4, a0, a5	# Determine character address
+	#endif
 z_riscv_user_string_nlen_fault_start:
+	#ifdef __CHERI_PURE_CAPABILITY__
+	clbu	a4, 0(ca4)	# Load string's character
+	#else
 	lbu	a4, 0(a4)	# Load string's character
+	#endif
 z_riscv_user_string_nlen_fault_end:
 	beqz	a4, exit	# Test string's end of line
 
 	bne	a5, a1, continue	# Check if max length is reached
 
 exit:
+	#ifdef __CHERI_PURE_CAPABILITY__
+	mv	a0, a5	# Return counter value (length)
+	cret
+	#else
 	mv	a0, a5		# Return counter value (length)
 	ret
+	#endif
 
 continue:
 	addi	a5, a5, 1	# Increment counter
@@ -47,5 +66,10 @@ continue:
 
 z_riscv_user_string_nlen_fixup:
 	li	a4, -1		# Put error to -1
+	#ifdef __CHERI_PURE_CAPABILITY__
+	csw	a4, 0(ca2)
+	#else
 	sw	a4, 0(a2)
+	#endif
 	j	exit
+

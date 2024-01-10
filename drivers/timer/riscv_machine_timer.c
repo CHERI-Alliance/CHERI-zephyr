@@ -3,6 +3,8 @@
  * Copyright (c) 2018-2023 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <limits.h>
@@ -14,11 +16,44 @@
 #include <zephyr/spinlock.h>
 #include <zephyr/irq.h>
 
+/* For CHERI we need to set the device memory base address as a capability with the correct bounds and permissions */
+/* Import the device memory map capability*/
+#ifdef __CHERI_PURE_CAPABILITY__
+extern void *mmdev_root_cap;
+#endif
+
 #define DT_DRV_COMPAT riscv_machine_timer
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Get base addresses and sizes for each reg entry */
+/*put some device tree checks in place */
+#if DT_INST_REG_SIZE_BY_IDX(0, 0) > 0x07
+#define MTIME_MMAP_LENGTH ((size_t)DT_INST_REG_SIZE_BY_IDX(0, 0))
+#else
+#define MTIME_MMAP_LENGTH 0x00000008
+#warning Check DT_INST_REG_SIZE_BY_IDX(0, 0) in device tree is not too small for CHERI in riscv_machine_timer, defaulting to 0x00000008
+#endif
+
+#if DT_INST_REG_SIZE_BY_IDX(0, 1) > 0x09
+#define MTIMECMP_MMAP_LENGTH ((size_t)DT_INST_REG_SIZE_BY_IDX(0, 1))
+#else
+#define MTIMECMP_MMAP_LENGTH 0x00000010
+/* #warning Check DT_INST_REG_SIZE_BY_IDX(0, 1) in device tree is not too small for CHERI in riscv_machine_timer, defaulting to 0x00000010 */
+#endif
+
+#define MTIME_BASE_ADDR_SET(n, m) (uintptr_t)__builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR_BY_IDX(n, m))
+#define MTIME_BASE_ADDR(n, m, size) (uintptr_t)__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n, m), size)
+/* Define capability-based addresses for each region */
+#define MTIME_REG	MTIME_BASE_ADDR(0, 0, MTIME_MMAP_LENGTH)
+#define MTIMECMP_REG	MTIME_BASE_ADDR(0, 1, MTIMECMP_MMAP_LENGTH)
+#define TIMER_IRQN	DT_INST_IRQN(0)
+
+#else
 #define MTIME_REG    DT_INST_REG_ADDR_BY_IDX(0, 0)
 #define MTIMECMP_REG DT_INST_REG_ADDR_BY_IDX(0, 1)
 #define TIMER_IRQN   DT_INST_IRQN(0)
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 #define CYC_PER_TICK (uint32_t)(sys_clock_hw_cycles_per_sec() / CONFIG_SYS_CLOCK_TICKS_PER_SEC)
 
@@ -102,7 +137,22 @@ static uint64_t mtime(void)
 #endif
 }
 
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static function head here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is only available for RISCV");
+#ifdef CONFIG_RISCV
+void timer_isr(const void *arg)
+#endif /*CONFIG_RISCV*/
+#else
 static void timer_isr(const void *arg)
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 {
 	ARG_UNUSED(arg);
 

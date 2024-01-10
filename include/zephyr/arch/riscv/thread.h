@@ -2,6 +2,8 @@
  * Copyright (c) 2017 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -26,13 +28,38 @@
  * The following structure defines the list of registers that need to be
  * saved/restored when a context switch occurs.
  */
+
 struct _callee_saved {
+	/*
+	 * The capability registers are always the size of a pointer which is bigger
+	 * than an unsigned long for CHERI.
+	 */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	uintptr_t csp;	/* Stack pointer, (x2 register) */
+	uintptr_t cra;	/* return address */
+
+	uintptr_t cs0;	/* saved register/frame pointer */
+	uintptr_t cs1;	/* saved register */
+	#else
 	unsigned long sp;	/* Stack pointer, (x2 register) */
 	unsigned long ra;	/* return address */
 
 	unsigned long s0;	/* saved register/frame pointer */
 	unsigned long s1;	/* saved register */
+	#endif
 #if !defined(CONFIG_RISCV_ISA_RV32E)
+	#ifdef __CHERI_PURE_CAPABILITY__
+	uintptr_t cs2;	/* saved register */
+	uintptr_t cs3;	/* saved register */
+	uintptr_t cs4;	/* saved register */
+	uintptr_t cs5;	/* saved register */
+	uintptr_t cs6;	/* saved register */
+	uintptr_t cs7;	/* saved register */
+	uintptr_t cs8;	/* saved register */
+	uintptr_t cs9;	/* saved register */
+	uintptr_t cs10;	/* saved register */
+	uintptr_t cs11;	/* saved register */
+	#else
 	unsigned long s2;	/* saved register */
 	unsigned long s3;	/* saved register */
 	unsigned long s4;	/* saved register */
@@ -43,9 +70,11 @@ struct _callee_saved {
 	unsigned long s9;	/* saved register */
 	unsigned long s10;	/* saved register */
 	unsigned long s11;	/* saved register */
+	#endif
 #endif
-};
-typedef struct _callee_saved _callee_saved_t;
+	};
+	typedef struct _callee_saved _callee_saved_t;
+
 
 #if !defined(RV_FP_TYPE)
 #ifdef CONFIG_CPU_HAS_FPU_DOUBLE_PRECISION
@@ -72,22 +101,42 @@ struct _thread_arch {
 	uint8_t exception_depth;
 #endif
 #ifdef CONFIG_USERSPACE
+	/*
+	 * An address is the size of a pointer which is bigger
+	 * than an unsigned long for CHERI.
+	 */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	uintptr_t priv_stack_start;
+	uintptr_t u_mode_pmpaddr_regs[CONFIG_PMP_SLOTS];
+	uintptr_t u_mode_pmpcfg_regs[CONFIG_PMP_SLOTS / sizeof(unsigned long)];
+	#else
 	unsigned long priv_stack_start;
 	unsigned long u_mode_pmpaddr_regs[CONFIG_PMP_SLOTS];
 	unsigned long u_mode_pmpcfg_regs[CONFIG_PMP_SLOTS / sizeof(unsigned long)];
+	#endif
 	unsigned int u_mode_pmp_domain_offset;
 	unsigned int u_mode_pmp_end_index;
 	unsigned int u_mode_pmp_update_nr;
 #endif
 #ifdef CONFIG_PMP_STACK_GUARD
 	unsigned int m_mode_pmp_end_index;
+	/*
+	 * An address is the size of a pointer which is bigger
+	 * than an unsigned long for CHERI.
+	 */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	uintptr_t m_mode_pmpaddr_regs[PMP_M_MODE_SLOTS];
+	uintptr_t m_mode_pmpcfg_regs[PMP_M_MODE_SLOTS / sizeof(unsigned long)];
+	#else
 	unsigned long m_mode_pmpaddr_regs[PMP_M_MODE_SLOTS];
 	unsigned long m_mode_pmpcfg_regs[PMP_M_MODE_SLOTS / sizeof(unsigned long)];
+	#endif
 #endif
 };
-
 typedef struct _thread_arch _thread_arch_t;
 
 #endif /* _ASMLANGUAGE */
 
 #endif /* ZEPHYR_INCLUDE_ARCH_RISCV_THREAD_H_ */
+
+

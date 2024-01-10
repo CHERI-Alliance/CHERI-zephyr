@@ -311,8 +311,21 @@ def main():
 
     with open(args.kernel, "rb") as fp:
         kernel = ELFFile(fp)
+
+        #CHERI DEBUG
+        if "CONFIG_CHERI" in get_symbols(kernel):
+            if "CONFIG_ISR_TABLE_USE_SYMBOLS" in get_symbols(kernel):
+                log.debug("CONFIG_ISR_TABLE_USE_SYMBOLS is present: \"{}\"")
+            else:
+                log.debug("CONFIG_ISR_TABLE_USE_SYMBOLS is NOT present: \"{}\"")
+
         config = gen_isr_config(args, get_symbols(kernel), log)
         intlist_data = read_intList_sect(kernel, config.get_intlist_snames())
+
+        #CHERI DEBUG
+        if "CONFIG_CHERI" in get_symbols(kernel):
+            #log.debug("intlist section: \"{}\"".format(intlist_data)) #add debug
+            log.debug("intlist section size in bytes: \"{}\"".format(len(intlist_data))) #add debug
 
         if config.check_sym("CONFIG_ISR_TABLES_LOCAL_DECLARATION"):
             parser_module = importlib.import_module('gen_isr_tables_parser_local')

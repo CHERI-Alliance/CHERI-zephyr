@@ -4,6 +4,8 @@
  *
  * SPDX-License-Identifier: SHL-0.51
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef CSR_H_
@@ -190,6 +192,17 @@
 	__rv;							\
 })
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* read special cap register */
+#define csr_cap_read(csr)						\
+({								\
+	register uintptr_t __rv __asm__ ("ca0"); \
+	__asm__ volatile ("cspecialr %0, " STRINGIFY(csr)		\
+				: "=r" (__rv));			\
+	__rv;							\
+})
+#endif
+
 #define csr_write(csr, val)					\
 ({								\
 	unsigned long __wv = (unsigned long)(val);		\
@@ -198,6 +211,16 @@
 				: "memory");			\
 })
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* write special cap register */
+#define csr_cap_write(csr, val)					\
+({				\
+	register uintptr_t __wv __asm__ ("ca0") = (uintptr_t)val;	\
+	__asm__ volatile ("cspecialw " STRINGIFY(csr) ", %0"		\
+				: : "rK" (__wv)		\
+				: "memory");			\
+})
+#endif
 
 #define csr_read_set(csr, val)					\
 ({								\
@@ -227,9 +250,9 @@
 
 #define csr_clear(csr, val)					\
 ({								\
-	unsigned long __cv = (unsigned long)(val);		\
+	unsigned long __v = (unsigned long)(val);		\
 	__asm__ volatile ("csrc " STRINGIFY(csr) ", %0"		\
-				: : "rK" (__cv)			\
+				: : "rK" (__v)			\
 				: "memory");			\
 })
 

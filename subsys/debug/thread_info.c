@@ -3,6 +3,8 @@
  * Copyright 2023 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -77,8 +79,14 @@ const size_t _kernel_thread_info_offsets[] = {
 #elif defined(CONFIG_RX)
 	[THREAD_INFO_OFFSET_T_STACK_PTR] = THREAD_INFO_UNIMPLEMENTED,
 #elif defined(CONFIG_RISCV)
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* use extended registers for CHERI */
+	[THREAD_INFO_OFFSET_T_STACK_PTR] = offsetof(struct k_thread,
+						callee_saved.csp),
+	#else
 	[THREAD_INFO_OFFSET_T_STACK_PTR] = offsetof(struct k_thread,
 						callee_saved.sp),
+	#endif
 #elif defined(CONFIG_SPARC)
 	[THREAD_INFO_OFFSET_T_STACK_PTR] = offsetof(struct k_thread,
 						callee_saved.o6),

@@ -179,15 +179,24 @@ static void walk_stackframe(riscv_stacktrace_cb cb, void *cookie, const struct k
 	if (esf != NULL) {
 		/* Unwind the provided exception stack frame */
 		sp = z_riscv_get_sp_before_exc(esf);
+		#ifdef __CHERI_PURE_CAPABILITY__
+		ra = esf->mepcc;
+		#else
 		ra = esf->mepc;
+		#endif
 	} else if ((csf == NULL) || (csf == &_current->callee_saved)) {
 		/* Unwind current thread (default case when nothing is provided ) */
 		sp = current_stack_pointer;
 		ra = (uintptr_t)walk_stackframe;
 	} else {
 		/* Unwind the provided thread */
+		#ifdef __CHERI_PURE_CAPABILITY__
+		sp = csf->csp;
+		ra = csf->cra;
+		#else
 		sp = csf->sp;
 		ra = csf->ra;
+		#endif
 	}
 
 	ksp = (uintptr_t *)sp;
@@ -205,7 +214,11 @@ static void walk_stackframe(riscv_stacktrace_cb cb, void *cookie, const struct k
 		}
 		last_ksp = (uintptr_t)ksp;
 		/* Unwind to the previous frame */
+		#ifdef __CHERI_PURE_CAPABILITY__
+		ra = ((struct arch_esf *)ksp++)->cra;
+		#else
 		ra = ((struct arch_esf *)ksp++)->ra;
+		#endif
 	}
 }
 #endif /* CONFIG_FRAME_POINTER */
