@@ -51,7 +51,6 @@ extern void *mmdev_root_cap; /* root capability of the device memory map */
  * kept as uintptr_t for CHERI specific code to keep consistent with rest of CHERI code.
  */
  /* DT_INST_REG_ADDR(n) evaluated at compile-time, PLIC_BASE_ADDR(n) evaluated at run-time*/
-
 #define PLIC_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
 #define PLIC_BASE_ADDR(n)  (uintptr_t)__builtin_cheri_bounds_set(PLIC_BASE_ADDR_SET(n), PLIC_MMAP_LENGTH)
 #else

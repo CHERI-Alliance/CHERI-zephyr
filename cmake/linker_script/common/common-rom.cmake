@@ -3,6 +3,8 @@
 # and som of include/zephyr/linker/common-rom/*.ld
 # Please keep in sync
 
+# Modified to support CHERI 2025, University of Birmingham
+
 zephyr_linker_section(NAME init KVMA RAM_REGION GROUP RODATA_REGION)
 zephyr_linker_section_obj_level(SECTION init LEVEL EARLY)
 zephyr_linker_section_obj_level(SECTION init LEVEL PRE_KERNEL_1)
@@ -215,7 +217,11 @@ if (CONFIG_LOG)
 endif()
 
 if (CONFIG_MULTI_LEVEL_INTERRUPTS)
+  if (CONFIG_CHERI && CONFIG_64BIT)
+  zephyr_iterable_section(NAME intc_table KVMA RAM_REGION GROUP RODATA_REGION SUBALIGN 16)
+  else
   zephyr_iterable_section(NAME intc_table KVMA RAM_REGION GROUP RODATA_REGION SUBALIGN 4)
+  endif()
 endif()
 
 if (CONFIG_HTTP_SERVER)

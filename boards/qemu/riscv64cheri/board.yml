@@ -1,0 +1,25 @@
+boards:
+- name: qemu_riscv64cheri
+  full_name: QEMU Emulation for RISCV64cheri
+  vendor: qemu
+  socs:
+    - name: qemu_virt_riscv64
+      variants:
+        - name: smp
+- name: qemu_riscv64cheri_smp
+  full_name: QEMU Emulation for RISCV64cheri
+  vendor: qemu
+  socs:
+    - name: qemu_virt_riscv64
+- name: qemu_riscv64cheri_purecap
+  full_name: QEMU Emulation for RISCV64cheri_purecap
+  vendor: qemu
+  socs:
+    - name: qemu_virt_riscv64
+      variants:
+        - name: smp
+- name: qemu_riscv64cheri_smp_purecap
+  full_name: QEMU Emulation for RISCV64cheri
+  vendor: qemu
+  socs:
+    - name: qemu_virt_riscv64
