@@ -85,10 +85,17 @@
 			k_stack_push(x, MAGIC); \
 		} while ((0))
 	#endif
+	#ifdef __CHERI_PURE_CAPABILITY__
+	#define take(x) do { \
+		stack_data_t data; k_stack_pop(x, &data, K_FOREVER); \
+		__ASSERT(data == MAGIC, "data was %lx\n", (unsigned long)data); \
+	} while ((0))
+	#else
 	#define take(x) do { \
 		stack_data_t data; k_stack_pop(x, &data, K_FOREVER); \
 		__ASSERT(data == MAGIC, "data was %lx\n", data); \
 	} while ((0))
+	#endif
 	#define drop(x) k_stack_push(x, MAGIC)
 	#define fork_type_str "stacks"
 #elif FORKS == FIFOS

@@ -37,6 +37,9 @@ BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_
 #ifdef CONFIG_RISCV
 void timer_isr(const void *arg);
 void plic_irq_handler(const void *arg);
+#ifdef CONFIG_SMP
+void ipi_handler(const void *unused);
+#endif /*CONFIG_SMP*/
 #endif /*CONFIG_RISCV*/
 #endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 
@@ -74,7 +77,15 @@ struct _isr_list {
 	/** Flags for this IRQ, see ISR_FLAG_* definitions */
 	int32_t flags;
 	/** ISR to call */
+	#ifdef __CHERI_PURE_CAPABILITY__
+	/* we need this to be an unsigned long for CHERI, not a capability pointer */
+	/* so the python script (gen_isr_tables.py) can determine the symbol name from the integer address*/
+	/* keep the padding for now so the capability version of the python script still works*/
+	unsigned long padding;
+	unsigned long func;
+	#else
 	void *func;
+	#endif
 	/** Parameter for non-direct IRQs */
 	const void *param;
 };
@@ -121,7 +132,7 @@ unsigned int z_get_sw_isr_table_idx(unsigned int irq);
 #define Z_ISR_DECLARE(irq, flags, func, param) \
 	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \
 		__used _MK_ISR_NAME(func, __COUNTER__) = \
-			{irq, flags, (unsigned long)&func, (const void *)param}
+			{irq, flags, (unsigned long)NULL, (unsigned long)&func, (const void *)param}
 #else
 #define Z_ISR_DECLARE(irq, flags, func, param) \
 	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \

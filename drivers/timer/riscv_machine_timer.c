@@ -29,7 +29,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -47,7 +47,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -65,7 +65,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
@@ -83,7 +83,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x0000c000 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 0xbff8U)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 0x4000U)
 #define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
@@ -101,7 +101,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -119,7 +119,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000120 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 0x110)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 0x118)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -137,7 +137,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIMECMP_REG	MTIME_BASE_ADDR(0)
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -156,7 +156,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000020 /* length of memory map */
 #define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR_U64(n))
-#define MTIME_BASE_ADDR(n)  __builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH)
+#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
 #define MTIMEDIV_REG	(MTIME_BASE_ADDR(0) + 4)
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 8)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 16)
@@ -296,7 +296,22 @@ void sys_clock_set_timeout(int32_t ticks, bool idle)
 	 * servicing latency. The compiler should optimize away the least
 	 * restrictive of those tests automatically.
 	 */
+
+	/*
+	 * when compiling with llvm-cheri (uses clang) we get a compiler warning here when we
+	 * do not include the (int32_t) type cast for ticks which is int32_t type:
+	 * warning: implicit conversion from 'unsigned long' to 'int32_t' (aka 'int')
+	 * changes value from 92233720368547 to -702313053 [-Wconstant-conversion].
+	 * When running with twister the warning is converted to an error and will
+	 * not pass the tests.
+	 */
+	#if defined(__clang__)
+	/* include the (int32_t) type cast */
+	ticks = (int32_t)CLAMP(ticks, 0, (cycle_diff_t)-1 / 2 / CYC_PER_TICK);
+	#else
+	/* do as normal */
 	ticks = CLAMP(ticks, 0, (cycle_diff_t)-1 / 2 / CYC_PER_TICK);
+	#endif
 	ticks = CLAMP(ticks, 0, INT32_MAX / 2);
 
 	k_spinlock_key_t key = k_spin_lock(&lock);

@@ -39,8 +39,20 @@ static void set_child(struct rbnode *n, uint8_t side, void *val)
 	} else {
 		uintptr_t old = (uintptr_t) n->children[0];
 		uintptr_t new = (uintptr_t) val;
-
+		/*
+		 * When compiling for purecap with llvm-cheri we get a compiler warning, leading to a twister test failure:
+		 * warning: binary expression on capability types 'uintptr_t' (aka 'unsigned __intcap') and 'uintptr_t'; it
+		 * is not clear which should be used as the source of provenance; currently provenance is inherited from the
+		 * left-hand side [-Wcheri-provenance].
+		 * CHERI C++ guide says to: The suggested fix for this problem is to cast the non-pointer argument to an integer type using (size_t)
+		 * n->children[0] = (void *) (new | (old & 1UL));
+		 * n->children[0] = (void *)(new|(size_t)(old & 1UL));
+		 */
+		#ifdef __CHERI_PURE_CAPABILITY__
+		n->children[0] = (void *) (new | (size_t)(old & 1UL));
+		#else
 		n->children[0] = (void *) (new | (old & 1UL));
+		#endif
 	}
 }
 

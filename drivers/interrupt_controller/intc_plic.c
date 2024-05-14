@@ -32,7 +32,7 @@ extern void *mmdev_root_cap; /* root capability of the device memory map */
  * Permissions are set on the device memory mmdev_root_cap.
  */
 #define PLIC_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define PLIC_BASE_ADDR(n)  __builtin_cheri_bounds_set(PLIC_BASE_ADDR_SET(n), PLIC_MMAP_LENGTH)
+#define PLIC_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(PLIC_BASE_ADDR_SET(n), PLIC_MMAP_LENGTH))
 #else
 #define PLIC_BASE_ADDR(n) DT_INST_REG_ADDR(n)
 #endif /*__CHERI_PURE_CAPABILITY__ */
@@ -283,6 +283,7 @@ static int plic_init(const struct device *dev)
 		    plic_irq_handler,
 		    NULL,
 		    0);
+
 
 	/* Enable IRQ for PLIC driver */
 	irq_enable(RISCV_MACHINE_EXT_IRQ);

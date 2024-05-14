@@ -83,16 +83,26 @@
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_timer, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mem_slab, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_heap, 4)
-	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mutex, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_stack, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_msgq, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mbox, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_pipe, 4)
 	#ifdef CONFIG_CHERI
 	/* For 64 bit CHERI any sections storing capabilities need to be 16 byte aligned  */
+	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mutex, 16)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_sem, 16)
+	ITERABLE_SECTION_RAM(net_buf_pool, 16)
 	#else
+	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mutex, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_sem, 4)
+		#ifdef CONFIG_64BIT
+		/*On 64bit CHERI-Flute RISCV64 (in non capability mode, i.e normal RISCV64) */
+		/*this needs to be aligned to 8 bytes otherwise a hardware alignment exception */
+		/*occurs, so set setting it to 8 for all CONFIG_64BIT*/
+		ITERABLE_SECTION_RAM(net_buf_pool, 8)
+		#else
+		ITERABLE_SECTION_RAM(net_buf_pool, 4)
+		#endif
 	#endif
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_event, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_queue, 4)
@@ -100,8 +110,6 @@
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_lifo, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_condvar, 4)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(sys_mem_blocks_ptr, 4)
-
-	ITERABLE_SECTION_RAM(net_buf_pool, 4)
 
 #if defined(CONFIG_NETWORKING)
 	NETWORK_RAM_SECTIONS

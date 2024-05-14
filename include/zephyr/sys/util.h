@@ -257,9 +257,11 @@ extern "C" {
  */
 #ifdef __CHERI_PURE_CAPABILITY__
 /* maintain pointer type otherwise will result in pointer that can not be dereferenced */
+/*WARNING! can potentially cause alignment outside bounds of capability resulting in length violation when try to dereference*/
   #define ROUND_UP(x, align)                                   \
-	((((uintptr_t)(x) + ((uintptr_t)(align) - (uintptr_t)1)) / \
+	((((uintptr_t)(x) + ((uintptr_t)((align) - 1))) / \
 	  (uintptr_t)(align)) * (uintptr_t)(align))
+
 #else
   #define ROUND_UP(x, align)                                   \
 	((((unsigned long)(x) + ((unsigned long)(align) - 1)) / \

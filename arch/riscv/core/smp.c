@@ -13,6 +13,12 @@
 #include <zephyr/sys/atomic.h>
 #include <zephyr/drivers/pm_cpu_ops.h>
 
+/* For CHERI we need to set the device memory base address as a capability with the correct bounds and permissions */
+/* Import the device memory map capability*/
+#ifdef __CHERI_PURE_CAPABILITY__
+extern void *mmdev_root_cap;
+#endif
+
 volatile struct {
 	arch_cpustart_t fn;
 	void *arg;
@@ -87,7 +93,17 @@ void z_riscv_secondary_cpu_init(int hartid)
 
 #ifdef CONFIG_SMP
 
+/* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* change bound length depending upon number of CPU/hartid */
+#define RISCV_MSIP_BASE_LENGTH sizeof(uint32_t)*CONFIG_MP_MAX_NUM_CPUS
+#define RISCV_MSIP_BASE_SET  __builtin_cheri_address_set(mmdev_root_cap, RISCV_MSIP_BASE)
+#define RISCV_MSIP_BASE_ADDR  __builtin_cheri_bounds_set(RISCV_MSIP_BASE_SET, RISCV_MSIP_BASE_LENGTH)
+#define MSIP(hartid) ((volatile uint32_t *)RISCV_MSIP_BASE_ADDR)[hartid]
+/* Otherwise set as normal */
+#else
 #define MSIP(hartid) ((volatile uint32_t *)RISCV_MSIP_BASE)[hartid]
+#endif
 
 static atomic_val_t cpu_pending_ipi[CONFIG_MP_MAX_NUM_CPUS];
 #define IPI_SCHED	0
@@ -117,8 +133,24 @@ void z_riscv_flush_fpu_ipi(unsigned int cpu)
 }
 #endif
 
+/* CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine the capability for the function in the ISR table, but can also be used for non-capabilities */
+/* When using symbols in the ISR table (instead of fixed addresses) include the non-static function head here */
+/* Symbols are necessary for CHERI */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+#ifdef CONFIG_RISCV
+void ipi_handler(const void *unused)
+#endif /*CONFIG_RISCV*/
+#else
 static void ipi_handler(const void *unused)
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 {
+
 	ARG_UNUSED(unused);
 
 	MSIP(csr_read(mhartid)) = 0;

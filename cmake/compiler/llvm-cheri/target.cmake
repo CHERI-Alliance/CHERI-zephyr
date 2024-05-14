@@ -46,6 +46,20 @@ if(NOT "${ARCH}" STREQUAL "posix")
     #when -mno-relax used only get error: relocation R_RISCV_HI20 out of range:
     #so also include -mcmodel=medany to tell the compiler to use auipc/jalr pair when jumping, which gives you a larger range of ±2GB
     elseif("${ARCH}" STREQUAL "riscv")
+
+    	if(CONFIG_CHERI)
+		#if compiling for riscv64 CHERI-PURECAP
+		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
+		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gcxcheri -mabi=l64pc128d ")
+		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
+    	else()
+    		#if compiling for normal riscv64
+    		#-march=rv64gc gc adds the floating point option and others
+		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gc ")
+		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gc ")
+		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gc ")
+	endif()
+
     list(APPEND TOOLCHAIN_C_FLAGS "--target=${triple}")
     list(APPEND TOOLCHAIN_LD_FLAGS "--target=${triple}")
     list(APPEND TOOLCHAIN_C_FLAGS "-mno-relax")

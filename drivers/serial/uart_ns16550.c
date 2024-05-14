@@ -414,8 +414,8 @@ static inline uintptr_t get_port(const struct device *dev)
 
 	if (config->io_map) {
 		#ifdef __CHERI_PURE_CAPABILITY__
-		port = __builtin_cheri_address_set(mmdev_root_cap, config->port);
-		port = __builtin_cheri_bounds_set(port, UART_MMAP_LENGTH);
+		port = (uintptr_t)(__builtin_cheri_address_set(mmdev_root_cap, config->port));
+		port = (uintptr_t)(__builtin_cheri_bounds_set(port, UART_MMAP_LENGTH));
 		/* Permissions set at higher layer */
 		#else
 		port = config->port;
@@ -425,7 +425,7 @@ static inline uintptr_t get_port(const struct device *dev)
 	{
 #endif
 		#ifdef __CHERI_PURE_CAPABILITY__
-		port = __builtin_cheri_address_set(mmdev_root_cap, DEVICE_MMIO_GET(dev));
+		port = (uintptr_t)(__builtin_cheri_address_set(mmdev_root_cap, DEVICE_MMIO_GET(dev)));
 		#ifdef DEVICE_MMIO_IS_IN_RAM
 			/*
 			 * When in RAM, the physical address (phys_addr) and region size (size)
@@ -440,7 +440,7 @@ static inline uintptr_t get_port(const struct device *dev)
 			 */
 			size_t boundslength = UART_MMAP_LENGTH;
 		#endif /* DEVICE_MMIO_IS_IN_RAM */
-		port = __builtin_cheri_bounds_set(port, boundslength);
+		port = (uintptr_t)(__builtin_cheri_bounds_set(port, boundslength));
 		/* Permissions set at higher layer */
 		#else
 		port = DEVICE_MMIO_GET(dev);
