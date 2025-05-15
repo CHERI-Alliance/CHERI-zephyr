@@ -1,15 +1,20 @@
 /*
  * Copyright (c) 2022 BayLibre, SAS
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/toolchain.h>
 #include <zephyr/linker/sections.h>
 #include <zephyr/arch/cpu.h>
 #include "asm_macros.inc"
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <cheri/cheri_riscv_asm_defines.h>
+#endif
 
 #define CSR_PMPCFG_BASE  0x3a0
 #define CSR_PMPADDR_BASE 0x3b0
@@ -38,10 +43,10 @@
 GTEXT(z_riscv_write_pmp_entries)
 SECTION_FUNC(TEXT, z_riscv_write_pmp_entries)
  	#ifdef __CHERI_PURE_CAPABILITY__
- 		cllc ct0, pmpaddr_store
+ 		M_CLLC ct0, pmpaddr_store
  		slli t1, a0, 4  /* 16-byte instruction blocks */
- 		cincoffset ct0, ct0, t1
- 		cjr ct0
+ 		M_CINCOFFSET ct0, ct0, t1
+ 		M_CJR ct0
  	#else
 		la t0, pmpaddr_store
 		slli t1, a0, 4  /* 16-byte instruction blocks */
@@ -53,7 +58,7 @@ pmpaddr_store:
  		.set _index, 0
 		.rept CONFIG_PMP_SLOTS
 		/* integer offset has to be zero so inc cap first */
-		cincOffsetImm ct0, ca3, (RV_REGSIZE * _index)
+		M_CINCOFFSETIMM ct0, ca3, (RV_REGSIZE * _index)
   		clr t0, 0(ct0) /* load integer into t0 using macro */
 		li t1, _index + 1 /* load integer t1 */
 		csrw (CSR_PMPADDR_BASE + _index), t0 /* write integer t0 */
@@ -81,13 +86,13 @@ pmpaddr_done:
 	 * a1 = (a1 + RV_REGSIZE - 1) / RV_REGSIZE
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-		cllc ct0, pmpcfg_store /* ct0 cap */
+		M_CLLC ct0, pmpcfg_store /* ct0 cap */
 		srli a0, a0, RV_REGSHIFT /* a0 integer */
 		slli t1, a0, 4  /* 16-byte instruction blocks */
-		cincoffset ct0, ct0, t1
+		M_CINCOFFSET ct0, ct0, t1
 		addi a1, a1, RV_REGSIZE - 1 /* a1 integer */
 		srli a1, a1, RV_REGSHIFT
-		cjr ct0
+		M_CJR ct0
  	#else
 		la t0, pmpcfg_store
 		srli a0, a0, RV_REGSHIFT
@@ -104,7 +109,7 @@ pmpcfg_store:
 		/* this code will be optimised away if (CONFIG_PMP_SLOTS / RV_REGSIZE) < 0 */
 		.rept (CONFIG_PMP_SLOTS / RV_REGSIZE)
 		/* integer offset has to be zero so inc cap first */
-		cincOffsetImm ct0, ca4, (RV_REGSIZE * _index)
+		M_CINCOFFSETIMM ct0, ca4, (RV_REGSIZE * _index)
   		clr t0, 0(ct0) /* load integer into t0 using macro */
   		addi a0, a0, 1 /* a0 is integer */
   		csrw (CSR_PMPCFG_BASE + RV_REGSIZE/4 * _index), t0 /* write integer t0 */
@@ -129,10 +134,10 @@ pmpcfg_done:
  	#ifdef __CHERI_PURE_CAPABILITY__
  		beqz a2, done /* a2 is boolean */
 
- 		cllc ct0, pmpcfg_zerotail /* ct0 cap */
+ 		M_CLLC ct0, pmpcfg_zerotail /* ct0 cap */
  		slli a0, a0, 2  /* 4-byte instruction blocks */
-		cincoffset ct0, ct0, a0
-		cjr ct0
+		M_CINCOFFSET ct0, ct0, a0
+		M_CJR ct0
  	#else
 		beqz a2, done
 
@@ -161,7 +166,7 @@ pmpcfg_zerotail:
 	#endif
 done:
  	#ifdef __CHERI_PURE_CAPABILITY__
- 		cret
+ 		M_CRET
  	#else
 		ret
 	#endif

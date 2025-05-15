@@ -42,3 +42,10 @@ config ISR_TABLE_USE_SYMBOLS
 	  uart_ns16550.c
 	  This option can also be used for non CHERI builds.
 
+config RISCV_ISA_ZCHERIPURECAP_ABI
+	bool "Build for purecap CHERI RISC-V 0.9.5 spec"
+	default n
+	help
+	  When building for CHERI this is used to select the CHERI RISC-V 0.9.5
+	  spec otherwise the default cambridge v8.0 spec is used
+

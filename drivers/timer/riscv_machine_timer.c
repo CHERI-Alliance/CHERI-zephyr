@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2024 MASSDRIVER EI (massdriver.space)
  * Copyright (c) 2018-2023 Intel Corporation
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <limits.h>
@@ -17,9 +18,8 @@
 #include <zephyr/irq.h>
 
 /* For CHERI we need to set the device memory base address as a capability with the correct bounds and permissions */
-/* Import the device memory map capability*/
 #ifdef __CHERI_PURE_CAPABILITY__
-extern void *mmdev_root_cap;
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
 #endif
 
 #define DT_DRV_COMPAT riscv_machine_timer
@@ -42,8 +42,8 @@ extern void *mmdev_root_cap;
 /* #warning Check DT_INST_REG_SIZE_BY_IDX(0, 1) in device tree is not too small for CHERI in riscv_machine_timer, defaulting to 0x00000010 */
 #endif
 
-#define MTIME_BASE_ADDR_SET(n, m) (uintptr_t)__builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR_BY_IDX(n, m))
-#define MTIME_BASE_ADDR(n, m, size) (uintptr_t)__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n, m), size)
+#define MTIME_BASE_ADDR(n, m, size) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR_BY_IDX(n, m), size)
+
 /* Define capability-based addresses for each region */
 #define MTIME_REG	MTIME_BASE_ADDR(0, 0, MTIME_MMAP_LENGTH)
 #define MTIMECMP_REG	MTIME_BASE_ADDR(0, 1, MTIMECMP_MMAP_LENGTH)

@@ -48,13 +48,24 @@ if(NOT "${ARCH}" STREQUAL "posix")
     elseif("${ARCH}" STREQUAL "riscv")
 
     	if(CONFIG_CHERI)
-		#if compiling for riscv64 CHERI-PURECAP
+    	        #if compiling for riscv64 CHERI-PURECAP
+    		if(CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI)
+    		#CHERI-PURECAP new RISC-V spec v0.9.5
+    		message(STATUS, "Compiling for riscv64 CHERI-PURECAP new RISC-V spec v0.9.5")
+    		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+		string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+    		else()
+    		#CHERI-PURECAP Cambs spec v8.0
+    		message(STATUS, "Compiling for riscv64 CHERI-PURECAP Cambs spec v8.0")
 		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
 		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gcxcheri -mabi=l64pc128d ")
 		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
+		endif()
     	else()
     		#if compiling for normal riscv64
     		#-march=rv64gc gc adds the floating point option and others
+    		message(STATUS, "Compiling for riscv64 only")
 		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gc ")
 		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gc ")
 		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gc ")

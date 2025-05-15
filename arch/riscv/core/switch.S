@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 2022 BayLibre, SAS
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
- *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/toolchain.h>
@@ -13,6 +13,10 @@
 #include <offsets_short.h>
 #include <zephyr/arch/cpu.h>
 #include "asm_macros.inc"
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <cheri/cheri_riscv_asm_defines.h>
+#endif
 
 
 /* Convenience macros for loading/storing register states. */
@@ -66,21 +70,21 @@ SECTION_FUNC(TEXT, z_riscv_switch)
 
 	/* Save the old thread's stack pointer */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	csc csp, _thread_offset_to_csp(ca1)
+	M_CSC csp, _thread_offset_to_csp(ca1)
 	#else
 	sr sp, _thread_offset_to_sp(a1)
 	#endif
 
 	/* Set thread->switch_handle = thread to mark completion */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	csc ca1, ___thread_t_switch_handle_OFFSET(ca1)
+	M_CSC ca1, ___thread_t_switch_handle_OFFSET(ca1)
 	#else
 	sr a1, ___thread_t_switch_handle_OFFSET(a1)
 	#endif
 
 	/* Get the new thread's stack pointer */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	clc csp, _thread_offset_to_csp(ca0) /* load cap reg from cap, use clc*/
+	M_CLC csp, _thread_offset_to_csp(ca0) /* load cap reg from cap, use clc*/
 	#else
 	lr sp, _thread_offset_to_sp(a0)
 	#endif
@@ -93,7 +97,7 @@ SECTION_FUNC(TEXT, z_riscv_switch)
 	* because tls is defined as uintptr_t type in zephyr/kernel/thread.h so the
 	* offset size will adjust correctly for CHERI.
 	*/
-	clc ctp, _thread_offset_to_tls(ca0)
+	M_CLC ctp, _thread_offset_to_tls(ca0)
 	#else
 	lr tp, _thread_offset_to_tls(a0)
 	#endif
@@ -102,9 +106,9 @@ SECTION_FUNC(TEXT, z_riscv_switch)
 #if defined(CONFIG_FPU_SHARING)
 	 /* Preserve a0 across following call. s0 is not yet restored. */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove cs0, ca0
-	ccall z_riscv_fpu_thread_context_switch
-	cmove ca0, cs0
+	M_CMOVE cs0, ca0
+	M_CCALL z_riscv_fpu_thread_context_switch
+	M_CMOVE ca0, cs0
 	#else
 	mv s0, a0
 	call z_riscv_fpu_thread_context_switch
@@ -115,9 +119,9 @@ SECTION_FUNC(TEXT, z_riscv_switch)
 #if defined(CONFIG_PMP_STACK_GUARD)
 	/* Stack guard has priority over user space for PMP usage. */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove cs0, ca0
-	ccall z_riscv_pmp_stackguard_enable
-	cmove ca0, cs0
+	M_CMOVE cs0, ca0
+	M_CCALL z_riscv_pmp_stackguard_enable
+	M_CMOVE ca0, cs0
 	#else
 	mv s0, a0
 	call z_riscv_pmp_stackguard_enable
@@ -130,12 +134,12 @@ SECTION_FUNC(TEXT, z_riscv_switch)
 	 * (it is done on every exception return otherwise).
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	clb t0, _thread_offset_to_user_options(ca0) /* load byte user options from cap*/
+	M_CLB t0, _thread_offset_to_user_options(ca0) /* load byte user options from cap*/
 	andi t0, t0, K_USER
 	beqz t0, not_user_task
-	cmove cs0, ca0
-	ccall z_riscv_pmp_usermode_enable
-	cmove ca0, cs0
+	M_CMOVE cs0, ca0
+	M_CCALL z_riscv_pmp_usermode_enable
+	M_CMOVE ca0, cs0
 	#else
 	lb t0, _thread_offset_to_user_options(a0)
 	andi t0, t0, K_USER
@@ -149,9 +153,9 @@ not_user_task:
 
 #if CONFIG_INSTRUMENT_THREAD_SWITCHING
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove cs0, ca0
-	ccall z_thread_mark_switched_in
-	cmove ca0, cs0
+	M_CMOVE cs0, ca0
+	M_CCALL z_thread_mark_switched_in
+	M_CMOVE ca0, cs0
 	#else
 	mv s0, a0
 	call z_thread_mark_switched_in
@@ -170,7 +174,7 @@ not_user_task:
 	/* Return to arch_switch() or _irq_wrapper() */
 
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cret
+	M_CRET
 	#else
 	ret
 	#endif

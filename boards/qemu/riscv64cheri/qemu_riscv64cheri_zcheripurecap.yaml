@@ -1,0 +1,17 @@
+identifier: qemu_riscv64cheri_zcheripurecap
+name: QEMU Emulation for RISC-V 64-bit with CHERI ZCHERIPURECAP
+type: qemu
+simulation:
+  - name: qemu
+arch: riscv
+toolchain:
+  - llvm-cheri
+supported:
+  - netif
+ram: 262144
+flash: 32768
+testing:
+  default: true
+  ignore_tags:
+    - net
+    - bluetooth
