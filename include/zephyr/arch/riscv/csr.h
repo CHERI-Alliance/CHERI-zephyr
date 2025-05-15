@@ -1,15 +1,20 @@
 /*
  * Copyright (c) 2020 Michael Schaffner
  * Copyright (c) 2020 BayLibre, SAS
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: SHL-0.51
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef CSR_H_
 #define CSR_H_
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <../arch/riscv/include/cheri/cheri_riscv_asm_defines.h>
+#endif
 
 #define MSTATUS_UIE	0x00000001
 #define MSTATUS_SIE	0x00000002
@@ -197,7 +202,7 @@
 #define csr_cap_read(csr)						\
 ({								\
 	register uintptr_t __v __asm__ ("ca0"); \
-	__asm__ volatile ("cspecialr %0, " STRINGIFY(csr)		\
+	__asm__ volatile (STRINGIFY(M_CSPECIALR)" %0, " STRINGIFY(csr)		\
 				: "=r" (__v));			\
 	__v;							\
 })
@@ -216,7 +221,7 @@
 #define csr_cap_write(csr, val)					\
 ({				\
 	register uintptr_t __v __asm__ ("ca0") = (uintptr_t)val;	\
-	__asm__ volatile ("cspecialw " STRINGIFY(csr) ", %0"		\
+	__asm__ volatile (STRINGIFY(M_CSPECIALW) " " STRINGIFY(csr) ", %0"		\
 				: : "rK" (__v)		\
 				: "memory");			\
 })

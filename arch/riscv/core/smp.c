@@ -1,9 +1,10 @@
 /*
  * Copyright (c) 2021 Intel Corporation
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/init.h>
@@ -14,9 +15,8 @@
 #include <zephyr/drivers/pm_cpu_ops.h>
 
 /* For CHERI we need to set the device memory base address as a capability with the correct bounds and permissions */
-/* Import the device memory map capability*/
 #ifdef __CHERI_PURE_CAPABILITY__
-extern void *mmdev_root_cap;
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
 #endif
 
 volatile struct {
@@ -74,7 +74,7 @@ void z_riscv_secondary_cpu_init(int hartid)
 	/* CHERI extends thread pointer register tp to ctp */
 	/* assign like this to remove error: couldn't allocate input reg for constraint 'r' */
 	register uintptr_t ca0 __asm__ ("ca0") = (uintptr_t)z_idle_threads[cpu_num].tls;
-	__asm__("cmove ctp, %0" : : "r" (ca0));
+	__asm__("#M_CMOVE ctp, %0" : : "r" (ca0));
 	#else
 	__asm__("mv tp, %0" : : "r" (z_idle_threads[cpu_num].tls));
 	#endif
@@ -97,8 +97,7 @@ void z_riscv_secondary_cpu_init(int hartid)
 #ifdef __CHERI_PURE_CAPABILITY__
 /* change bound length depending upon number of CPU/hartid */
 #define RISCV_MSIP_BASE_LENGTH sizeof(uint32_t)*CONFIG_MP_MAX_NUM_CPUS
-#define RISCV_MSIP_BASE_SET  __builtin_cheri_address_set(mmdev_root_cap, RISCV_MSIP_BASE)
-#define RISCV_MSIP_BASE_ADDR  __builtin_cheri_bounds_set(RISCV_MSIP_BASE_SET, RISCV_MSIP_BASE_LENGTH)
+#define RISCV_MSIP_BASE_ADDR (uintptr_t) cheri_build_device_cap(RISCV_MSIP_BASE, RISCV_MSIP_BASE_LENGTH)
 #define MSIP(hartid) ((volatile uint32_t *)RISCV_MSIP_BASE_ADDR)[hartid]
 /* Otherwise set as normal */
 #else
@@ -142,7 +141,7 @@ BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS, "CONFIG_ISR_TABLE_USE_
 #endif
 #ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
 /* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
-BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is is only available for RISCV");
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV, "CONFIG_ISR_TABLE_USE_SYMBOLS is only available for RISCV");
 #ifdef CONFIG_RISCV
 void ipi_handler(const void *unused)
 #endif /*CONFIG_RISCV*/

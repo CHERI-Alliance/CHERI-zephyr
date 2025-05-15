@@ -2,10 +2,10 @@
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  * Copyright (c) 2018 Foundries.io Ltd
  * Copyright (c) 2020 BayLibre, SAS
- *
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
+
  * SPDX-License-Identifier: Apache-2.0
- *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/toolchain.h>
@@ -21,6 +21,10 @@
 
 #ifdef CONFIG_RISCV_SOC_HAS_ISR_STACKING
 #include <soc_isr_stacking.h>
+#endif
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <cheri/cheri_riscv_asm_defines.h>
 #endif
 
 /* Convenience macro for loading/storing register states. */
@@ -65,14 +69,14 @@
 	.macro get_current_cpu dst
 #if defined(CONFIG_SMP) || defined(CONFIG_USERSPACE)
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cspecialr \dst, mscratchc
+	M_CSPECIALR \dst, mscratchc
 	#else
 	csrr \dst, mscratch
 	#endif
 #else
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cllc \dst, _kernel
-	cincoffset \dst, \dst,  ___kernel_t_cpus_OFFSET
+	M_CLLC \dst, _kernel
+	M_CINCOFFSETIMM \dst, \dst,  ___kernel_t_cpus_OFFSET
 	#else
 	la \dst, _kernel + ___kernel_t_cpus_OFFSET
 	#endif
@@ -105,7 +109,6 @@ GDATA(_k_syscall_table)
 
 /* exports */
 GTEXT(_isr_wrapper)
-
 /* use ABI name of registers for the sake of simplicity */
 
 /*
@@ -140,9 +143,9 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 #ifdef CONFIG_USERSPACE
 	/* retrieve address of _current_cpu preserving s0 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ct2, cs0 /* temp save */
-	cspecialr cs0, mscratchc /* read */
-	cspecialw mscratchc, ct2 /* write */
+	M_CMOVE ct2, cs0 /* temp save */
+	M_CSPECIALR cs0, mscratchc /* read */
+	M_CSPECIALW mscratchc, ct2 /* write */
 	#else
 	csrrw s0, mscratch, s0 /* read and write to CSR */
 	#endif
@@ -165,7 +168,7 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 
 	/* in user space we were: switch to our privileged stack */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ct0, csp
+	M_CMOVE ct0, csp
 	clc csp, _curr_cpu_arch_user_exc_csp(cs0) /* load cap at cap */
 	#else
 	mv t0, sp
@@ -194,7 +197,7 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 	#ifdef __CHERI_PURE_CAPABILITY__
 	/* ToDo - build with a userspace app and check this is converted correctly */
 	lui t0, %tprel_hi(is_user_mode) /* load upper immediate */
-	cincoffset ct0, ctp, t0, %tprel_cincoffset(is_user_mode)
+	M_CINCOFFSET ct0, ctp, t0, %tprel_cincoffset(is_user_mode)
 	csb zero, %tprel_lo(is_user_mode)(ct0)
 	#else
 	lui t0, %tprel_hi(is_user_mode)
@@ -213,9 +216,9 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 
 	/* retrieve original s0 and restore _current_cpu in mscratch */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ct2, cs0 /* temp save */
-	cspecialr cs0, mscratchc /* read */
-	cspecialw mscratchc, ct2 /* write */
+	M_CMOVE ct2, cs0 /* temp save */
+	M_CSPECIALR cs0, mscratchc /* read */
+	M_CSPECIALW mscratchc, ct2 /* write */
 	#else
 	csrrw s0, mscratch, s0 /* read and write to CSR */
 	#endif
@@ -224,9 +227,10 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 #ifdef CONFIG_RISCV_SOC_HAS_ISR_STACKING
 	SOC_ISR_SW_STACKING
 #else
+
 	/* Save caller-saved registers on current thread stack. */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, -__z_arch_esf_t_SIZEOF
+	M_CINCOFFSETIMM csp, csp, -__z_arch_esf_t_SIZEOF
 	/* If we keep returning here after the first DO_CALLER_SAVED, it is likely due to an out of bounds stack exception */
 	/* If we read the value of mcause and mtval first we need some register to store the values but don't want to loose the values of those about to be saved*/
 	DO_CALLER_SAVED(csc)		; /* store cap reg at cap, use csc*/
@@ -247,7 +251,7 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 
 	/* Save MEPC register */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cspecialr ct0, mepcc
+	M_CSPECIALR ct0, mepcc
 	csc ct0, __z_arch_esf_t_mepcc_OFFSET(csp) /* store cap reg at cap */
 	#else
 	csrr t0, mepc
@@ -257,7 +261,7 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 	/* Save MSTATUS register */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	csrr t2, mstatus /* mstatus integer reg */
-	Cincoffset ct3, csp, __z_arch_esf_t_mstatus_OFFSET /*0 offset with macro so inc first*/
+	M_CINCOFFSETIMM ct3, csp, __z_arch_esf_t_mstatus_OFFSET /*0 offset with macro so inc first*/
 	csr t2, 0(ct3) /*store integer at cap (macro) */
 	#else
 	csrr t2, mstatus
@@ -343,9 +347,9 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 
 is_fp:	/* Process the FP trap and quickly return from exception */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cllc cra, fp_trap_exit
-	cmove ca0, csp
-	ctail z_riscv_fpu_trap
+	M_CLLC cra, fp_trap_exit
+	M_CMOVE ca0, csp
+	M_CTAIL z_riscv_fpu_trap
 	#else
 	la ra, fp_trap_exit
 	mv a0, sp
@@ -367,7 +371,7 @@ no_fp:	/* increment _current->arch.exception_depth */
 
 	/* configure the FPU for exception mode */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall z_riscv_fpu_enter_exc
+	M_CCALL z_riscv_fpu_enter_exc
 	#else
 	call z_riscv_fpu_enter_exc
 	#endif
@@ -376,9 +380,9 @@ no_fp:	/* increment _current->arch.exception_depth */
 #ifdef CONFIG_RISCV_SOC_CONTEXT_SAVE
 	/* Handle context saving at SOC level. */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ca0, csp
-	cincoffset ca0, __z_arch_esf_t_soc_context_OFFSET
-	cjal cra, __soc_save_context
+	M_CMOVE ca0, csp
+	M_CINCOFFSETIMM ca0, csp, __z_arch_esf_t_soc_context_OFFSET
+	M_CJAL cra, __soc_save_context
 	#else
 	addi a0, sp, __z_arch_esf_t_soc_context_OFFSET
 	jal ra, __soc_save_context
@@ -396,7 +400,7 @@ no_fp:	/* increment _current->arch.exception_depth */
 	 * returned via register a0 (1: interrupt, 0 exception)
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cjal cra, __soc_is_irq
+	M_CJAL cra, __soc_is_irq
 	#else
 	jal ra, __soc_is_irq
 	#endif
@@ -437,9 +441,9 @@ no_fp:	/* increment _current->arch.exception_depth */
 	 * no_reschedule to restore stack.
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ca0, csp
-	cllc cra, no_reschedule
-	ctail _Fault
+	M_CMOVE ca0, csp
+	M_CLLC cra, no_reschedule
+	M_CTAIL _Fault
 	#else
 	mv a0, sp
 	la ra, no_reschedule
@@ -458,7 +462,7 @@ is_kernel_syscall:
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	clc ct0, __z_arch_esf_t_mepcc_OFFSET(csp) /* load cap at cap */
-	cincoffset ct0, ct0, 4
+	M_CINCOFFSETIMM ct0, ct0, 4
 	csc ct0, __z_arch_esf_t_mepcc_OFFSET(csp) /* save cap at cap */
 	#else
 	lr t0, __z_arch_esf_t_mepc_OFFSET(sp)
@@ -512,8 +516,8 @@ do_fault:
 	/* Handle RV_ECALL_RUNTIME_EXCEPT. Retrieve reason in a0, esf in A1. */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	clc ca0, __z_arch_esf_t_ca0_OFFSET(csp) /* load cap at cap */
-1:	cmove ca1, csp
-	ctail z_riscv_fatal_error
+1:	M_CMOVE ca1, csp
+	M_CTAIL z_riscv_fatal_error
 	#else
 	lr a0, __z_arch_esf_t_a0_OFFSET(sp)
 1:	mv a1, sp
@@ -550,7 +554,7 @@ do_irq_offload:
 
 	/* Switch to interrupt stack */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ct0, csp
+	M_CMOVE ct0, csp
 	clc csp, ___cpu_t_irq_stack_OFFSET(cs0) /* load cap at cap */
 	#else
 	mv t0, sp
@@ -559,7 +563,7 @@ do_irq_offload:
 
 	/* Save thread stack pointer on interrupt stack */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, -16
+	M_CINCOFFSETIMM csp, csp, -16
 	csc ct0, 0(csp) /* save cap at cap */
 	#else
 	addi sp, sp, -16
@@ -568,7 +572,7 @@ do_irq_offload:
 1:
 	/* Execute provided routine (argument is in a0 already). */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cjalr cra, ca1, 0
+	M_CJALR cra, ca1, 0
 	#else
 	jalr ra, a1, 0
 	#endif
@@ -587,7 +591,7 @@ is_user_syscall:
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	clc ca0, ___cpu_t_current_OFFSET(cs0) /* load cap at cap */
-	ccall z_riscv_pmp_stackguard_enable
+	M_CCALL z_riscv_pmp_stackguard_enable
 	#else
 	lr a0, ___cpu_t_current_OFFSET(s0)
 	call z_riscv_pmp_stackguard_enable
@@ -603,7 +607,7 @@ is_user_syscall:
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	clc ct1, __z_arch_esf_t_mepcc_OFFSET(csp) /* load cap at cap */
-	cincoffset ct1, ct1, 4
+	M_CINCOFFSETIMM ct1, ct1, 4
 	csc ct1, __z_arch_esf_t_mepcc_OFFSET(csp) /* save cap at cap */
 	#else
 	lr t1, __z_arch_esf_t_mepc_OFFSET(sp)
@@ -632,8 +636,8 @@ is_user_syscall:
 #if defined(CONFIG_RISCV_ISA_RV32E)
 	/* Stack alignment for RV32E is 4 bytes */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, -8 /* twice as big for CHERI cap */
-	cmove ct1, csp
+	M_CINCOFFSETIMM csp, csp, -8 /* twice as big for CHERI cap */
+	M_CMOVE ct1, csp
 	csc ct1, 0(csp)
 	#else
 	addi sp, sp, -4
@@ -642,7 +646,7 @@ is_user_syscall:
 	#endif
 #else
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ca6, csp
+	M_CMOVE ca6, csp
 	#else
 	mv a6, sp
 	#endif
@@ -654,7 +658,7 @@ is_user_syscall:
 
 	/* bad syscall id.  Set arg1 to bad id and set call_id to SYSCALL_BAD */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ca0, ct0
+	M_CMOVE ca0, ct0
 	li t0, K_SYSCALL_BAD
 	#else
 	mv a0, t0
@@ -663,10 +667,10 @@ is_user_syscall:
 
 valid_syscall_id:
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cllc ct2, _k_syscall_table
+	M_CLLC ct2, _k_syscall_table
 
 	slli t1, t0, RV_REGSHIFT	# Determine offset from indice value
-	cincoffset ct2, ct2, t1		# Table addr + offset = function addr
+	M_CINCOFFSET ct2, ct2, t1		# Table addr + offset = function addr
 	clc ct2, 0(ct2)			# Load function address
 	#else
 	la t2, _k_syscall_table
@@ -678,14 +682,14 @@ valid_syscall_id:
 
 	/* Execute syscall function */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cjalr cra, ct2, 0
+	M_CJALR cra, ct2, 0
 	#else
 	jalr ra, t2, 0
 	#endif
 
 #if defined(CONFIG_RISCV_ISA_RV32E)
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, 8 /* twice as big for CHERI cap */
+	M_CINCOFFSETIMM csp, csp, 8 /* twice as big for CHERI cap */
 	#else
 	addi sp, sp, 4
 	#endif
@@ -712,13 +716,13 @@ is_interrupt:
 	 * PMP for kernel mode stack guard.
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset ct3, csp, __z_arch_esf_t_mstatus_OFFSET /*0 offset with macro */
+	M_CINCOFFSETIMM ct3, csp, __z_arch_esf_t_mstatus_OFFSET /*0 offset with macro */
         clr t0, 0(ct3) /*load integer reg at cap (macro) */
 	li t1, MSTATUS_MPP
 	and t0, t0, t1
 	bnez t0, 1f
 	clc ca0, ___cpu_t_current_OFFSET(cs0) /* load cap at cap */
-	ccall z_riscv_pmp_stackguard_enable
+	M_CCALL z_riscv_pmp_stackguard_enable
 	#else
 	lr t0, __z_arch_esf_t_mstatus_OFFSET(sp)
 	li t1, MSTATUS_MPP
@@ -752,7 +756,7 @@ is_interrupt:
 
 	/* Switch to interrupt stack */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ct0, csp
+	M_CMOVE ct0, csp
 	clc csp, ___cpu_t_irq_stack_OFFSET(cs0) /* load cap at cap */
 	#else
 	mv t0, sp
@@ -763,7 +767,7 @@ is_interrupt:
 	 * In RISC-V, stack pointer needs to be 16-byte aligned
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, -16
+	M_CINCOFFSETIMM csp, csp, -16
 	csc ct0, 0(csp) /* save cap at cap */
 	#else
 	addi sp, sp, -16
@@ -774,7 +778,7 @@ on_irq_stack:
 
 #ifdef CONFIG_TRACING_ISR
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall sys_trace_isr_enter
+	M_CCALL sys_trace_isr_enter
 	#else
 	call sys_trace_isr_enter
 	#endif
@@ -790,7 +794,7 @@ on_irq_stack:
 	 * Pass IRQ number to __soc_handle_irq via register a0
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cjal cra, __soc_handle_irq
+	M_CJAL cra, __soc_handle_irq
 	#else
 	jal ra, __soc_handle_irq
 	#endif
@@ -800,10 +804,10 @@ on_irq_stack:
 	 * (table is 2-word wide, we should shift index accordingly)
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cllc ct0, _sw_isr_table
+	M_CLLC ct0, _sw_isr_table
 	/* shift more as we are now using caps */
 	slli a0, a0, (RV_REGSHIFT + 2)
-	cincoffset ct0, ct0, a0
+	M_CINCOFFSET ct0, ct0, a0
 	#else
 	la t0, _sw_isr_table
 	slli a0, a0, (RV_REGSHIFT + 1)
@@ -826,14 +830,14 @@ on_irq_stack:
 
 	/* Call ISR function */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cjalr cra, ct1, 0
+	M_CJALR cra, ct1, 0
 	#else
 	jalr ra, t1, 0
 	#endif
 
 #ifdef CONFIG_TRACING_ISR
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall sys_trace_isr_exit
+	M_CCALL sys_trace_isr_exit
 	#else
 	call sys_trace_isr_exit
 	#endif
@@ -861,7 +865,7 @@ irq_done:
 
 #ifdef CONFIG_STACK_SENTINEL
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall z_check_stack_sentinel
+	M_CCALL z_check_stack_sentinel
 	#else
 	call z_check_stack_sentinel
 	#endif
@@ -884,12 +888,12 @@ check_reschedule:
 	 * If no scheduling is necessary then NULL will be returned.
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, -16
+	M_CINCOFFSETIMM csp, csp, -16
 	csc ca1, 0(csp) /* store cap at cap */
-	cmove ca0, cnull
-	ccall z_get_next_switch_handle
+	M_CMOVE ca0, cnull
+	M_CCALL z_get_next_switch_handle
 	clc ca1, 0(csp) /* load cap at cap */
-	cincoffset csp, csp, 16
+	M_CINCOFFSETIMM csp, csp, 16
 	#else
 	addi sp, sp, -16
 	sr a1, 0(sp)
@@ -908,7 +912,7 @@ reschedule:
 	 * a1 = old thread
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall z_riscv_switch
+	M_CCALL z_riscv_switch
 	#else
 	call z_riscv_switch
 	#endif
@@ -929,9 +933,9 @@ no_reschedule:
 #ifdef CONFIG_RISCV_SOC_CONTEXT_SAVE
 	/* Restore context at SOC level */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ca0, csp
-	cincoffset ca0, __z_arch_esf_t_soc_context_OFFSET
-	cjal cra, __soc_restore_context
+	M_CMOVE ca0, csp
+	M_CINCOFFSETIMM ca0, csp, __z_arch_esf_t_soc_context_OFFSET
+	M_CJAL cra, __soc_restore_context
 	#else
 	addi a0, sp, __z_arch_esf_t_soc_context_OFFSET
 	jal ra, __soc_restore_context
@@ -941,8 +945,8 @@ no_reschedule:
 #if defined(CONFIG_FPU_SHARING)
 	/* FPU handling upon exception mode exit */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cmove ca0, csp
-	ccall z_riscv_fpu_exit_exc
+	M_CMOVE ca0, csp
+	M_CCALL z_riscv_fpu_exit_exc
 	#else
 	mv a0, sp
 	call z_riscv_fpu_exit_exc
@@ -966,9 +970,9 @@ fp_trap_exit:
 	/* Restore MEPC and MSTATUS registers */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	clc ct0, __z_arch_esf_t_mepcc_OFFSET(csp) /* load cap at cap */
-	cincoffset ct2,csp, __z_arch_esf_t_mstatus_OFFSET /*0 offset with macro */
+	M_CINCOFFSETIMM ct2,csp, __z_arch_esf_t_mstatus_OFFSET /*0 offset with macro */
 	clr t2, 0(ct2) /*load integer at cap (macro) */
-	cspecialw mepcc, ct0
+	M_CSPECIALW mepcc, ct0
 	#else
 	lr t0, __z_arch_esf_t_mepc_OFFSET(sp)
 	lr t2, __z_arch_esf_t_mstatus_OFFSET(sp)
@@ -989,8 +993,8 @@ fp_trap_exit:
 #ifdef CONFIG_PMP_STACK_GUARD
 	/* Remove kernel stack guard and Reconfigure PMP for user mode */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	clr ca0, ___cpu_t_current_OFFSET(cs0)
-	ccall z_riscv_pmp_usermode_enable
+	clc ca0, ___cpu_t_current_OFFSET(cs0)
+	M_CCALL z_riscv_pmp_usermode_enable
 	#else
 	lr a0, ___cpu_t_current_OFFSET(s0)
 	call z_riscv_pmp_usermode_enable
@@ -1001,7 +1005,7 @@ fp_trap_exit:
 	li t1, 1
 	lui t0, %tprel_hi(is_user_mode) /* load upper immediate */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset ct0, ctp, t0, %tprel_cincoffset(is_user_mode)
+	M_CINCOFFSET ct0, ctp, t0, %tprel_cincoffset(is_user_mode)
 	csb t1, %tprel_lo(is_user_mode)(ct0)	/* cap store byte */
 	#else
 	add t0, t0, tp, %tprel_add(is_user_mode)
@@ -1010,7 +1014,7 @@ fp_trap_exit:
 
 	/* preserve stack pointer for next exception entry */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset ct0, csp, __z_arch_esf_t_SIZEOF
+	M_CINCOFFSETIMM ct0, csp, __z_arch_esf_t_SIZEOF
 	csc ct0, _curr_cpu_arch_user_exc_csp(cs0) /* store cap at cap */
 	#else
 	add t0, sp, __z_arch_esf_t_SIZEOF
@@ -1024,7 +1028,7 @@ fp_trap_exit:
 	 * be re-loaded further down.
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset ct0, csp, __z_arch_esf_t_SIZEOF
+	M_CINCOFFSETIMM ct0, csp, __z_arch_esf_t_SIZEOF
 	csc ct0, __z_arch_esf_t_csp_OFFSET(csp) /* store cap at cap */
 	#else
 	addi t0, sp, __z_arch_esf_t_SIZEOF
@@ -1060,7 +1064,7 @@ fp_trap_exit:
 #else
 	/* remove esf from the stack */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cincoffset csp, csp, __z_arch_esf_t_SIZEOF
+	M_CINCOFFSETIMM csp, csp, __z_arch_esf_t_SIZEOF
 	#else
 	addi sp, sp, __z_arch_esf_t_SIZEOF
 	#endif

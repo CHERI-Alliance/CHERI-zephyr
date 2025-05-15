@@ -1,28 +1,33 @@
 /*
  * Copyright (c) 2023 BayLibre SAS
  * Written by: Nicolas Pitre
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/toolchain.h>
 #include <zephyr/linker/sections.h>
 #include <offsets.h>
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <cheri/cheri_riscv_asm_defines.h>
+#endif
+
 #ifdef CONFIG_CPU_HAS_FPU_DOUBLE_PRECISION
  #ifdef __CHERI_PURE_CAPABILITY__
-  #define LOAD	cfld
-  #define STORE	cfsd
+  #define LOAD	M_CFLD
+  #define STORE	M_CFSD
  #else
   #define LOAD	fld
   #define STORE	fsd
  #endif
 #else
  #ifdef __CHERI_PURE_CAPABILITY__
-  #define LOAD	cflw
-  #define STORE	cfsw
+  #define LOAD	M_CFLW
+  #define STORE	M_CFSW
  #else
   #define LOAD	flw
   #define STORE	fsw
@@ -69,8 +74,8 @@ SECTION_FUNC(TEXT, z_riscv_fpu_save)
 	frcsr t0
 	#ifdef __CHERI_PURE_CAPABILITY__
 	DO_FP_REGS(STORE, ca0)
-	csw t0, __z_riscv_fp_context_t_fcsr_OFFSET(ca0)
-	cret
+	M_CSW t0, __z_riscv_fp_context_t_fcsr_OFFSET(ca0)
+	M_CRET
 	#else
 	DO_FP_REGS(STORE, a0)
 	sw t0, __z_riscv_fp_context_t_fcsr_OFFSET(a0)
@@ -81,9 +86,9 @@ GTEXT(z_riscv_fpu_restore)
 SECTION_FUNC(TEXT, z_riscv_fpu_restore)
 	#ifdef __CHERI_PURE_CAPABILITY__
 	DO_FP_REGS(LOAD, ca0)
-	clw t0, __z_riscv_fp_context_t_fcsr_OFFSET(ca0)
+	M_CLW t0, __z_riscv_fp_context_t_fcsr_OFFSET(ca0)
 	fscsr t0
-	cret
+	M_CRET
 	#else
 	DO_FP_REGS(LOAD, a0)
 	lw t0, __z_riscv_fp_context_t_fcsr_OFFSET(a0)

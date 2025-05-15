@@ -1,0 +1,15 @@
+identifier: qemu_riscv64cheri_smp_zcheripurecap
+name: QEMU Emulation for RISC-V 64-bit SMP with CHERI ZCHERIPURECAP
+type: qemu
+simulation: qemu
+arch: riscv64
+toolchain:
+  - llvm-cheri
+supported:
+  - netif
+  - smp
+testing:
+  default: true
+  ignore_tags:
+    - net
+    - bluetooth

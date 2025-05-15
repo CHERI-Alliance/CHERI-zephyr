@@ -5,10 +5,11 @@
 /*
  * Copyright (c) 2010, 2012-2015 Wind River Systems, Inc.
  * Copyright (c) 2020-2023 Intel Corp.
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -42,6 +43,10 @@
 
 #include <zephyr/drivers/serial/uart_ns16550.h>
 #include <zephyr/logging/log.h>
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
+#endif
 
 LOG_MODULE_REGISTER(uart_ns16550, CONFIG_UART_LOG_LEVEL);
 
@@ -79,7 +84,7 @@ BUILD_ASSERT(IS_ENABLED(CONFIG_PCIE), "NS16550(s) in DT need CONFIG_PCIE");
 
 #ifdef __CHERI_PURE_CAPABILITY__
   /* We need to know the size of the device memory map in order to set the capability bounds */
-  #define UART_MMAP_LENGTH 0x208
+  #define UART_MMAP_LENGTH 0x28
 #endif
 
 #define REG_THR 0x00  /* Transmitter holding reg.       */
@@ -404,19 +409,13 @@ static inline uint8_t reg_interval(const struct device *dev)
 static inline uintptr_t get_port(const struct device *dev)
 {
 
-#ifdef __CHERI_PURE_CAPABILITY__
-	/* Device memory map capability */
-	extern void *mmdev_root_cap;
-#endif
 	uintptr_t port;
 #if UART_NS16550_IOPORT_ENABLED
 	const struct uart_ns16550_device_config *config = dev->config;
 
 	if (config->io_map) {
 		#ifdef __CHERI_PURE_CAPABILITY__
-		port = (uintptr_t)(__builtin_cheri_address_set(mmdev_root_cap, config->port));
-		port = (uintptr_t)(__builtin_cheri_bounds_set(port, UART_MMAP_LENGTH));
-		/* Permissions set at higher layer */
+		port =  (uintptr_t) cheri_build_device_cap(config->port, UART_MMAP_LENGTH);
 		#else
 		port = config->port;
 		#endif
@@ -425,7 +424,6 @@ static inline uintptr_t get_port(const struct device *dev)
 	{
 #endif
 		#ifdef __CHERI_PURE_CAPABILITY__
-		port = (uintptr_t)(__builtin_cheri_address_set(mmdev_root_cap, DEVICE_MMIO_GET(dev)));
 		#ifdef DEVICE_MMIO_IS_IN_RAM
 			/*
 			 * When in RAM, the physical address (phys_addr) and region size (size)
@@ -440,8 +438,7 @@ static inline uintptr_t get_port(const struct device *dev)
 			 */
 			size_t boundslength = UART_MMAP_LENGTH;
 		#endif /* DEVICE_MMIO_IS_IN_RAM */
-		port = (uintptr_t)(__builtin_cheri_bounds_set(port, boundslength));
-		/* Permissions set at higher layer */
+		port =  (uintptr_t) cheri_build_device_cap(DEVICE_MMIO_GET(dev), boundslength);
 		#else
 		port = DEVICE_MMIO_GET(dev);
 		#endif /* __CHERI_PURE_CAPABILITY__ */

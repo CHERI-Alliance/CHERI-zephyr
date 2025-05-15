@@ -1,9 +1,10 @@
 /*
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -14,7 +15,7 @@
 #include <zephyr/logging/log.h>
 #ifdef __CHERI_PURE_CAPABILITY__
 #include <stddef.h>
-#define CHERI_MASK 0x1f
+#include <cheri/cheri_riscv_asm_defines.h>
 #endif
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
@@ -130,10 +131,12 @@ static char *cause_str(unsigned long cause)
 
 	#ifdef __CHERI_PURE_CAPABILITY__
 	/* see CHERI spec - riscv */
+	#ifndef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
 	case 26:
 		return "Load capability page fault";
 	case 27:
 		return "Store/AMO capability page fault";
+	#endif
 	case 28:
 		return "CHERI exception";
 	#endif
@@ -144,9 +147,77 @@ static char *cause_str(unsigned long cause)
 }
 
 #ifdef __CHERI_PURE_CAPABILITY__
+#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+/* 0.9.5 spec */
+static char *cap95_type_str(unsigned long mtval2)
+{
+uint8_t exccode;
+	exccode = mtval2 & CHERI_TYPE_MASK;
+	switch (exccode) {
+	case 0x00:
+		return "CHERI instruction fetch fault";
+	case 0x01:
+		return "CHERI data fault due to load, store or AMO";
+	case 0x02:
+		return "CHERI jump or branch fault";
+	case 0x03:
+	case 0x04:
+	case 0x05:
+	case 0x06:
+	case 0x07:
+	case 0x08:
+	case 0x09:
+	case 0x0a:
+	case 0x0b:
+	case 0x0c:
+	case 0x0d:
+	case 0x0e:
+	case 0x0f:
+		return "CHERI reserved";
+	default:
+		return "CHERI exception - unknown code";
+		}
+}
+
+static char *cap95_cause_str(unsigned long mtval2)
+{
+uint8_t exccode;
+
+	exccode = mtval2 & CHERI_CAUSE_MASK;
+	switch (exccode) {
+	case 0x00:
+		return "CHERI tag violation";
+	case 0x01:
+		return "CHERI seal violation";
+	case 0x02:
+		return "CHERI permission violation";
+	case 0x03:
+		return "CHERI invalid address violation";
+	case 0x04:
+		return "CHERI bounds violation";
+	case 0x05:
+	case 0x06:
+	case 0x07:
+	case 0x08:
+	case 0x09:
+	case 0x0a:
+	case 0x0b:
+	case 0x0c:
+	case 0x0d:
+	case 0x0e:
+	case 0x0f:
+		return "CHERI reserved";
+	default:
+		return "CHERI exception - unknown code";
+		}
+}
+
+#else
+/* cambs v8 spec */
 static char *cap_cause_str(unsigned long mtval)
 {
 	#ifdef __CHERI_PURE_CAPABILITY__
+
 	/*  see CHERI spec - riscv */
 
 	uint8_t exccode;
@@ -192,7 +263,8 @@ static char *cap_cause_str(unsigned long mtval)
 		return "Illegal operation - not in CHERI mode";
 	#endif
 }
-#endif
+#endif /* CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI */
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 static bool bad_stack_pointer(z_arch_esf_t *esf)
 {
@@ -283,6 +355,14 @@ void _Fault(z_arch_esf_t *esf)
 	unsigned long mtval;
 
 	__asm__ volatile("csrr %0, mtval" : "=r" (mtval));
+
+	#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+	unsigned long mtval2;
+
+	__asm__ volatile("csrr %0, mtval2" : "=r" (mtval2));
+
+
+	#endif
 #endif
 
 	mcause &= SOC_MCAUSE_EXP_MASK;
@@ -290,8 +370,16 @@ void _Fault(z_arch_esf_t *esf)
 	LOG_ERR(" mcause: %ld, %s", mcause, cause_str(mcause));
 #ifndef CONFIG_SOC_OPENISA_RV32M1_RISCV32
 	#ifdef __CHERI_PURE_CAPABILITY__
+	#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+	/* log specific CHERI 0.9.5 spec violation */
+	LOG_ERR(" mtval2type: %ld, %s", mtval, cap95_type_str(mtval2));
+	LOG_ERR(" mtval2cause: %ld, %s", mtval, cap95_cause_str(mtval2));
+	#else
 	/* log specific CHERI violation */
 	LOG_ERR(" mtval: %ld, %s", mtval, cap_cause_str(mtval));
+	#endif
+
+
 	#else
 	LOG_ERR("  mtval: %lx", mtval);
 	#endif

@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
  * Contributors: 2018 Antmicro <www.antmicro.com>
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #define DT_DRV_COMPAT sifive_plic_1_0_0
@@ -23,16 +24,19 @@
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
+#endif
+
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define PLIC_MMAP_LENGTH 0x4000000 /* length of plic memory map according to RISCV PLIC specs. See below */
-extern void *mmdev_root_cap; /* root capability of the device memory map */
 /*
  * Define base address as a capability, and set bounds.
  * Permissions are set on the device memory mmdev_root_cap.
  */
-#define PLIC_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define PLIC_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(PLIC_BASE_ADDR_SET(n), PLIC_MMAP_LENGTH))
+#define PLIC_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), PLIC_MMAP_LENGTH)
+
 #else
 #define PLIC_BASE_ADDR(n) DT_INST_REG_ADDR(n)
 #endif /*__CHERI_PURE_CAPABILITY__ */

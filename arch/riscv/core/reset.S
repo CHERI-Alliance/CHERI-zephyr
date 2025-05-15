@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  * Contributors: 2018 Antmicro <www.antmicro.com>
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
- *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/toolchain.h>
@@ -14,19 +14,7 @@
 #include "asm_macros.inc"
 
 #ifdef __CHERI_PURE_CAPABILITY__
-/* CHERI ISA RISCV PERMISSIONS */
-#define	CHERI_GLOBAL				(1 << 0)	/* 0x00000001 */
-#define	CHERI_PERMIT_EXECUTE			(1 << 1)	/* 0x00000002 */
-#define	CHERI_PERMIT_LOAD			(1 << 2)	/* 0x00000004 */
-#define	CHERI_PERMIT_STORE			(1 << 3)	/* 0x00000008 */
-#define	CHERI_PERMIT_LOAD_CAPABILITY		(1 << 4)	/* 0x00000010 */
-#define	CHERI_PERMIT_STORE_CAPABILITY		(1 << 5)	/* 0x00000020 */
-#define	CHERI_PERMIT_STORE_LOCAL_CAPABILITY	(1 << 6)	/* 0x00000040 */
-#define	CHERI_PERMIT_SEAL			(1 << 7)	/* 0x00000080 */
-#define	CHERI_PERMIT_CINVOKE			(1 << 8)	/* 0x00000100 */
-#define	CHERI_PERMIT_UNSEAL			(1 << 9)	/* 0x00000200 */
-#define	CHERI_PERMIT_ACCESS_SYSTEM_REGISTERS	(1 << 10)	/* 0x00000400 */
-#define	CHERI_PERMIT_SET_CID			(1 << 11)	/* 0x00000800 */
+#include <cheri/cheri_riscv_asm_defines.h>
 #endif
 
 /* exports */
@@ -47,7 +35,7 @@ SECTION_FUNC(reset, __reset)
 	 * This will be dependent on linker.ld configuration.
 	 */
 	 #ifdef __CHERI_PURE_CAPABILITY__
-	 ccall __initialize
+	 M_CCALL __initialize
 	 #else
 	 call __initialize
 	 #endif
@@ -88,7 +76,7 @@ boot_first_core:
 
  	#ifdef __CHERI_PURE_CAPABILITY__
  		/* Pre-populate all bytes in z_interrupt_stacks with 0xAA */
-		cllc ct0, z_interrupt_stacks /* Load PCC-relative capability */
+		M_CLLC ct0, z_interrupt_stacks /* Load PCC-relative capability */
 		li t1, __z_interrupt_stack_SIZEOF
 		add t1, t1, t0 /* end addr */
 
@@ -96,7 +84,7 @@ boot_first_core:
 		li t2, 0xaaaaaaaa
 	aa_loop:
 		csw t2, 0x00(ct0)
-		cincoffsetImm ct0, ct0, 4
+		M_CINCOFFSETIMM ct0, ct0, 4
 		blt t0, t1, aa_loop
 
  	#else
@@ -120,21 +108,16 @@ interrupt_stacks:
 	 * z_interrupt_stacks + __z_interrupt_stack_SIZEOF
 	 */
 	 #ifdef __CHERI_PURE_CAPABILITY__
-	 	cllc ct0, z_interrupt_stacks /* Load PCC-relative capability */
+	 	M_CLLC ct0, z_interrupt_stacks /* Load PCC-relative capability */
 	 	li t1, __z_interrupt_stack_SIZEOF
 	 	/* set bounds of sp, needs to be aligned to boundary */
-	 	csetaddr ct0, ct0, t0 /* set base to address */
-	 	csetBounds ct0, ct0, t1 /* set bounds to size */
+	 	M_CSETADDR ct0, ct0, t0 /* set base to address */
+	 	M_CSETBOUNDS ct0, ct0, t1 /* set bounds to size */
 	 	/* set permissions */
-		li	t2, CHERI_GLOBAL | \
-			CHERI_PERMIT_LOAD | \
-			CHERI_PERMIT_LOAD_CAPABILITY | \
- 			CHERI_PERMIT_STORE | \
- 			CHERI_PERMIT_STORE_CAPABILITY | \
- 			CHERI_PERMIT_STORE_LOCAL_CAPABILITY
-	 	candperm ct0, ct0, t2
-		cincoffset ct0, ct0, t1 /* set to start at end of stack */
-		cmove csp, ct0 /* move to csp */
+		li	t2, CHERI_PERM_INTERRUPT_STACKS
+	 	M_CANDPERM ct0, ct0, t2
+		M_CINCOFFSET ct0, ct0, t1 /* set to start at end of stack */
+		M_CMOVE csp, ct0 /* move to csp */
 
 	 #else
 		la sp, z_interrupt_stacks
@@ -142,67 +125,72 @@ interrupt_stacks:
 		add sp, sp, t0
 	#endif
 
-cheribss:
 /* do CHERI code bits here to start with */
 #ifdef __CHERI_PURE_CAPABILITY__
+cheribss:
 	/*
 	* Clear BSS - need to do this before initialising any global capabilities in the bss section
 	* zephyr does this later in boot code for non-cap mode _PrepC
-	* Todo - could probably replace this with zephyr bss function?
 	*/
-	cllc	cs0, __bss_start
-	cllc	cs1, __bss_end
+	M_CLLC	cs0, __bss_start
+	M_CLLC	cs1, __bss_end
 	/* if nothing in bss skip else bounds exception when write */
 	beq s1, s0, 2f
 1:
 	csd	zero, 0(cs0)
-	cincoffset cs0, cs0, 8
+	M_CINCOFFSETIMM cs0, cs0, 8
 	bltu	s0, s1, 1b
 2:
+
+/* We have now created stacks and cleared the bss, now restrict PCC perms so can only execute code - so can't write to executable code section */
+	M_CLLC	ct1, 1f /* where to go now */
+	/* set permissions */
+	li	t2, CHERI_PERM_EXECUTABLE
+	M_CANDPERM ct1, ct1, t2
+	M_CJR	ct1 /* jump to new PCC with reduced perms */
+/*align jump to 16 bytes for 64 bit arch */
+.balign 16
+1:
+
+initrelocs:
 	/* Save rootcap DDC and clear kernel's DDC. */
-	cspecialr cs0, ddc /* save in cs0 */
-	cmove	ct0, cnull
-	cspecialw ddc, ct0
+	M_CSPECIALR cs0, ddc /* save in cs0 */
+	M_CMOVE	ct0, cnull
+	M_CSPECIALW ddc, ct0
 
 	/* Initialize cap relocs and set up cap table. */
 
 	/* Set permissions on kernel data cap - arg 1, use ddc in cs0 */
-	li	t0, CHERI_GLOBAL | \
-			CHERI_PERMIT_LOAD | \
-			CHERI_PERMIT_LOAD_CAPABILITY | \
- 			CHERI_PERMIT_STORE | \
- 			CHERI_PERMIT_STORE_CAPABILITY | \
- 			CHERI_PERMIT_STORE_LOCAL_CAPABILITY
-	candperm ca0, cs0, t0
+	li	t0, CHERI_PERM_KERNEL_DATA
+	M_CANDPERM ca0, cs0, t0
 
 	/* call init_cap_relocs func and return */
 	/* also set this as code cap - arg 2 */
-	cllc	ca1, init_cap_relocs
-	cjalr	ca1
+	M_CLLC	ca1, init_cap_relocs
+	M_CJALR	ca1
 
 initcap:
 	/* Initialize capabilities - save some main capabilities need to use later. */
-	cmove	ca0, cs0 /* arg1 ddc root cap */
-	/* cllc	ca1, init_cap_roots */ /* Load PCC-relative capability */
-	/* can now get the capability out of the table (clgc) because has been initialised above */
-	clgc	cra, init_cap_roots
-	cjalr	cra
+	M_CMOVE	ca0, cs0 /* arg1 ddc root cap */
+	/* can now get the capability out of the table (M_CLGC) because has been initialised above */
+	M_CLGC	cra, init_cap_roots
+	M_CJALR	cra
 
 	/*any boot params to save*/
 
 	/* Discard ddc in cs0. */
-	cmove	cs0, cnull
+	M_CMOVE	cs0, cnull
 	/* Clear other capabilities no longer needed. */
-	cmove	cs1, cnull
-	cmove	cs2, cnull
-	cmove	cs3, cnull
+	M_CMOVE	cs1, cnull
+	M_CMOVE	cs2, cnull
+	M_CMOVE	cs3, cnull
 
 #endif
 /* do this after init capabilities because purecap uses them to get cap to memory map hardware wdog */
 wdog:
 #ifdef CONFIG_WDOG_INIT
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall _WdogInit
+	M_CCALL _WdogInit
 	#else
 	call _WdogInit
 	#endif
@@ -214,9 +202,9 @@ prepc:
 	 * and then enters kernel z_cstart
 	 */
 	 #ifdef __CHERI_PURE_CAPABILITY__
-	 	/* cllc	ct0, _PrepC */ /* Load PCC-relative capability */
-	 	clgc	ct0, _PrepC /* Load cap from table */
-		cjalr ct0
+	 	/* M_CLLC	ct0, _PrepC */ /* Load PCC-relative capability */
+	 	M_CLGC	ct0, _PrepC /* Load cap from table */
+		M_CJALR ct0
 	 #else
 		call _PrepC
          #endif
@@ -231,16 +219,16 @@ prepc:
 boot_secondary_core:
 #if CONFIG_MP_MAX_NUM_CPUS > 1
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cllc ct0, riscv_cpu_wake_flag
+	M_CLLC ct0, riscv_cpu_wake_flag
 	clw t0, 0(ct0)
 	bne a0, t0, boot_secondary_core /* a0 hartid */
 
 	/* Set up stack */
-	cllc ct0, riscv_cpu_sp /* load addr relative to pcc */
+	M_CLLC ct0, riscv_cpu_sp /* load addr relative to pcc */
 	clc ct0, 0(ct0) /* load contents at 0 offset, assumes stack saved here already */
-        cmove csp, ct0 /* move to csp */
+        M_CMOVE csp, ct0 /* move to csp */
 
-	cllc ct0, riscv_cpu_wake_flag
+	M_CLLC ct0, riscv_cpu_wake_flag
 	csc cnull, 0(ct0)
 	j z_riscv_secondary_cpu_init /* hart id in a0 */
 

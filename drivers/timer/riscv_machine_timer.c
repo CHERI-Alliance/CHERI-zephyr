@@ -1,9 +1,10 @@
 /*
  * Copyright (c) 2018-2023 Intel Corporation
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <limits.h>
@@ -16,9 +17,8 @@
 #include <zephyr/irq.h>
 
 /* For CHERI we need to set the device memory base address as a capability with the correct bounds and permissions */
-/* Import the device memory map capability*/
 #ifdef __CHERI_PURE_CAPABILITY__
-extern void *mmdev_root_cap;
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
 #endif
 
 /* andestech,machine-timer */
@@ -28,8 +28,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -46,8 +45,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -64,8 +62,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
@@ -82,8 +79,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x0000c000 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 0xbff8U)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 0x4000U)
 #define TIMER_IRQN	DT_INST_IRQ_BY_IDX(0, 1, irq)
@@ -100,8 +96,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIME_REG	MTIME_BASE_ADDR(0)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -118,8 +113,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000120 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 0x110)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 0x118)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -136,8 +130,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000010 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR(n), MTIME_MMAP_LENGTH)
 #define MTIMECMP_REG	MTIME_BASE_ADDR(0)
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 8)
 #define TIMER_IRQN	DT_INST_IRQN(0)
@@ -155,8 +148,7 @@ extern void *mmdev_root_cap;
 /* For CHERI we need to set the base address as a capability with the correct bounds and permissions */
 #ifdef __CHERI_PURE_CAPABILITY__
 #define MTIME_MMAP_LENGTH 0x00000020 /* length of memory map */
-#define MTIME_BASE_ADDR_SET(n)  __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR_U64(n))
-#define MTIME_BASE_ADDR(n)  (uintptr_t)(__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n), MTIME_MMAP_LENGTH))
+#define MTIME_BASE_ADDR(n) (uintptr_t) cheri_build_device_cap(DT_INST_REG_ADDR_U64(n), MTIME_MMAP_LENGTH)
 #define MTIMEDIV_REG	(MTIME_BASE_ADDR(0) + 4)
 #define MTIME_REG	(MTIME_BASE_ADDR(0) + 8)
 #define MTIMECMP_REG	(MTIME_BASE_ADDR(0) + 16)

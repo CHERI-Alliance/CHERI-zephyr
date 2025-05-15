@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified for CHERI 2024 by University of Birmingham
+# Modified for CHERI 2025 by University of Birmingham
 
 config BUILD_OUTPUT_BIN
 	default n
@@ -9,3 +9,5 @@ config BOARD
 	default "qemu_riscv64cheri_purecap" if BOARD_QEMU_RISCV64CHERI_PURECAP
 	default "qemu_riscv64cheri_smp" if BOARD_QEMU_RISCV64CHERI_SMP
 	default "qemu_riscv64cheri_smp_purecap" if BOARD_QEMU_RISCV64CHERI_SMP_PURECAP
+	default "qemu_riscv64cheri_zcheripurecap" if BOARD_QEMU_RISCV64CHERI_ZCHERIPURECAP
+	default "qemu_riscv64cheri_smp_zcheripurecap" if BOARD_QEMU_RISCV64CHERI_SMP_ZCHERIPURECAP

@@ -1,9 +1,10 @@
 /*
  * Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 /*
@@ -15,6 +16,9 @@
 #include <zephyr/toolchain.h>
 #include <zephyr/linker/sections.h>
 #include <soc.h>
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <cheri/cheri_riscv_asm_defines.h>
+#endif
 
 /*
  * __soc_handle_irq is defined as .weak to allow re-implementation by
@@ -34,7 +38,7 @@ SECTION_FUNC(exception.other, __soc_handle_irq)
 
 	/* Return */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cret
+	M_CRET
 	#else
 	ret
 	#endif
@@ -65,7 +69,7 @@ SECTION_FUNC(exception.other, __soc_is_irq)
 not_interrupt:
 	/* return */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cret
+	M_CRET
 	#else
 	ret
 	#endif

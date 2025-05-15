@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  * Copyright (c) 2020 BayLibre, SAS
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -225,7 +226,7 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 	register void *ca3 __asm__("ca3") = p3;
 
 	__asm__ volatile (
-	"cmove csp, %4; mret"
+	"#M_CMOVE csp, %4; mret"
 	:
 	: "r" (ca0), "r" (ca1), "r" (ca2), "r" (ca3), "r" (top_of_user_stack)
 	: "memory");
@@ -273,7 +274,7 @@ FUNC_NORETURN void z_riscv_switch_to_main_no_multithreading(k_thread_entry_t mai
 	register uintptr_t ca1 __asm__ ("ca1") = (uintptr_t)main_stack;
 
 	__asm__ volatile (
-	"cmove csp, %0; cjalr cra, %1, 0"
+	"#M_CMOVE csp, %0; cjalr cra, %1, 0"
 	:
 	: "r" (ca1), "r" (ca0)
 	: "memory");
