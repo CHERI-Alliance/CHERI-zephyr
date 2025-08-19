@@ -1,5 +1,5 @@
 
-# Running docker for CHERI-RISCV64-v2.0
+# Running docker
 
 ## To build docker
  Firstly clone the docker-release branch to **zephyrproject/docker-release**

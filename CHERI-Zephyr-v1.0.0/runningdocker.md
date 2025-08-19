@@ -1,5 +1,5 @@
 
-# Running docker for CHERI-RISCV64-v1.0
+# Running docker
 
 ## To build docker
  Firstly clone the docker-release branch to **project_name/docker-release**

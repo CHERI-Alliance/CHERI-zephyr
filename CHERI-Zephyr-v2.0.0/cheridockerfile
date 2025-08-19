@@ -1,4 +1,4 @@
-#
+# CHERI-Zephyr-v2.0.0
 # Copyright (c) 2025 University of Birmingham, Added to support CHERI spec
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -35,7 +35,7 @@
 # west build -p always -b qemu_riscv64cheri_zcheripurecap samples/hello_world
 # west build -t run
 #Run a twister test:
-# python3 scripts/twister -p qemu_riscv64 -T samples/hello_world
+# python3 scripts/twister -p qemu_riscv64cheri -T samples/hello_world
 #Ctrl+C to stop QEMU
 
 #In docker (for cambs cheribuild):

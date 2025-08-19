@@ -2,11 +2,11 @@
 
 *The zephyr project is released under an Apache 2.0 LICENSE.*
 
-*This README.md file has been added to include CHERI-specific information. Refer to the main Zephyr README for further information.*
+*This README.md file includes CHERI-specific information. Refer to the main Zephyr README.rst for further information.*
 
-# CHERI - Zephyr - release CHERI-RISCV64-v1.0
+# CHERI - Zephyr - release v2.0.0
 
-This repository contains a version of Zephyr with CHERI support for CHERI-RISCV64. It is based on upstream Zephyr 3.5 (Commit ec031029).
+This release is a rebase version of CHERI-Zephyr v1.0.0 with a more recent upstream version of Zephyr (Commit 90a48e8, May 20, 2025 - based on Zephyr 4.1).
 
 CHERI-Zephyr along with the CHERI-based tool chains can be installed manually following the section on `Detailed Manual Setup` or can be built and run using Docker following the section on `Docker Setup`.
 
@@ -38,7 +38,7 @@ CHERI support is provided for system emulation of CHERI RISC-V 64-bit machines. 
 
 ## CHERI Board Support in Zephyr
 
-The following boards have been added to the Zephyr build:
+The following CHERI boards are supported:
 
 * build normal RISCV for QEMU-CHERI-RISCV64 (Cambridge/Codasip):
     * qemu_riscv64cheri
@@ -98,7 +98,7 @@ west build -t run
 output:
 ```
 -- west build: running target run
-[0/1] To exit from QEMU enter: 'CTRL+a, x'[QEMU] CPU: riscv64cheri
+[0/1] To exit from QEMU enter: 'CTRL+a, x'[QEMU] CPU: (README.rst) riscv64cheri
 *** Booting Zephyr OS build zephyr-v3.5.0-1112-ge73bafc6c501 ***
 Hello World! qemu_riscv64cheri_purecap
 ```
@@ -124,74 +124,19 @@ Further information regarding set up is given below. Refer to the Zephyr README 
 
 ## Docker Setup
 
-This section describes set up for a docker container. This cheri branch includes a `cheridocker/cheridockerfile` which has been added for this release. (See section on `Detailed Manual Setup` for a manual install.)
+This section describes set up for a docker container for testing with the CHERI toolchain or the Zephyr SDK. (See section on `Detailed Manual Setup` for a manual install.)
 
-**Step1: Clone repo**
-
-First clone this repo to ~/zephyrproject/zephyr
+First clone the release branch to ~/zephyrproject/zephyr
 ```
-git clone --recurse-submodules --branch <this branch name> <this git repo> ~/zephyrproject/zephyr
+git clone --recurse-submodules --branch <branch name> <git repo> ~/zephyrproject/zephyr
 ```
-**Step2: Build docker image**
-
 Ensure you have docker installed, for Ubuntu:
 
 ```
 sudo apt install -y docker.io
 ```
-You can either build with both toolchains, or a single toolchain. The build process will take several hours. From a Ubuntu terminal:
+Then follow the [docker instructions](runningdocker.md) to run the dockerfile for the current release.
 
-```
-cd zephyrproject
-
-#To automatically build wih both toolchains:
-docker build --no-cache -t cherizephyrimage -f zephyr/cheridocker/cheridockerfile .
-
-#To build with a selected toolchain (set featues to true/false):
-docker build --no-cache --build-arg FEATURE_CHERIBUILD=false --build-arg FEATURE_CODASIP=true -t cherizephyrimage -f zephyr/cheridocker/cheridockerfile .
-
-```
-
-**Step3: Run docker image**
-
-To run the image:
-```
-docker run -it cherizephyrimage bash
-```
-
-**Step4: Build and run CHERI-Zephyr in the docker image**
-
-In docker for Cambridge CHERI-RISCV64:
-
-```
-cd zephyrproject
-source ~/zephyrproject/.venv/bin/activate
-export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri
-export LLVM_CHERI_TOOLCHAIN_PATH=/home/builder/cheri/output/sdk
-export QEMU_BIN_PATH=/home/builder/cheri/output/sdk/bin
-cd zephyr
-west build -p always -b qemu_riscv64cheri samples/hello_world
-west build -p always -b qemu_riscv64cheri_purecap samples/hello_world
-west build -t run
-```
-
-In docker for Codasip CHERI-RISCV64 ZCHERIPURECAP v0.9.5 spec:
-
-```
-cd zephyrproject
-source ~/zephyrproject/.venv/bin/activate
-export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri
-export LLVM_CHERI_TOOLCHAIN_PATH=/home/builder/llvm-cheri-codasip/build
-export QEMU_BIN_PATH=/home/builder/qemu-codasip/build
-cd zephyr
-west build -p always -b qemu_riscv64cheri samples/hello_world
-west build -p always -b qemu_riscv64cheri_zcheripurecap samples/hello_world
-west build -t run
-
-```
-`Ctrl+C` to stop QEMU.
-
-`exit` to stop docker container.
 
 ## Detailed Manual Setup
 
@@ -320,12 +265,12 @@ make
 make install
 ```
 
-### zephyr (this repo):
-**Step1: Clone zephyr (this branch/repo)**
+### zephyr (this release branch):
+**Step1: Clone zephyr (this release branch/repo)**
 
 Clone to ~/zephyrproject/zephyr
 ```
-git clone --recurse-submodules --branch <this branch name> <this git repo> ~/zephyrproject/zephyr
+git clone --recurse-submodules --branch <release branch name> <this git repo> ~/zephyrproject/zephyr
 ```
 **Step2: Install dependencies**
 
@@ -356,7 +301,7 @@ Install west in the virtual environment in the zephyrproject directory.
 pip install west
 ```
 
-## Step4: Build Manual cloned fork of CHERI-Zephyr
+## Step4: Build Manual clone of CHERI-Zephyr
 
 Inside the virtual environment, initialize the west workspace for a manual cloned fork of the Zephyr repository. (Using the -l option in the  command line)
 
