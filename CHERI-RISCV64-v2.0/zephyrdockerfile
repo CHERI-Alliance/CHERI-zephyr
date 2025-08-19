@@ -1,0 +1,76 @@
+# CHERI-RISCV64-v2.0
+#
+# Copyright (c) 2025 University of Birmingham, Added to support CHERI spec
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+#################################################################################
+# Build docker and run tests
+#################################################################################
+# To build: (takes one hour)
+#  cd zephyrproject
+#  docker build --no-cache -t zephyrimage -f docker-release/CHERI-RISCV64-v2.0/zephyrdockerfile .
+
+# To build wih buildx:
+#  docker buildx build -t zephyrimage -f docker-release/CHERI-RISCV64-v2.0/zephyrdockerfile --load .
+# To run
+#  docker run -it zephyrimage bash
+#################################################################################
+# Running in docker:
+#################################################################################
+# Additional sample tests can be added and run in docker:
+#  python3 zephyr/scripts/twister -p qemu_riscv64 -T zephyr/tests
+#  python3 zephyr/scripts/twister -p qemu_riscv32 -T zephyr/tests
+#  python3 zephyr/scripts/twister -p qemu_riscv64 -T zephyr/samples
+#  python3 zephyr/scripts/twister -p qemu_riscv32 -T zephyr/samples
+
+# !Warning - sometimes the following sample shell tests can experience time outs:
+#  /zephyr/samples/subsys/testsuite/pytest/shell/sample.harness.shell.vt100_colors_off 
+#  /zephyr/samples/subsys/testsuite/pytest/shell/sample.harness.shell
+#  /zephyr/samples/sensor/sensor_shell/sample.sensor.shell.pytest 
+#################################################################################
+
+# Use the Zephyr CI image as base (based on zephyr 4.1.0 )
+FROM ghcr.io/zephyrproject-rtos/ci-repo-cache:v0.27.4.20241026
+
+# Set environment variables
+# SDK_VERSION from SDK_VERSION file (based on zephyr 4.1.0 )
+ARG SDK_VERSION=0.17.0
+ENV MATRIX_SIZE=10 \
+    PUSH_MATRIX_SIZE=20 \
+    WEEKLY_MATRIX_SIZE=200 \
+    ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-$SDK_VERSION \
+    BSIM_OUT_PATH=/opt/bsim/ \
+    BSIM_COMPONENTS_PATH=/opt/bsim/components \
+    TESTS_PER_BUILDER=900
+
+# Set working directory
+WORKDIR /zephyrproject
+
+# Fix GitHub Actions container UID issue (optional in Dockerfile)
+RUN git config --global --add safe.directory /zephyrproject
+# Create workspace directory
+RUN mkdir -p /zephyrproject/zephyr
+
+# Copy local repo (assumes context includes `zephyr` folder)
+COPY ./zephyr /zephyrproject/zephyr
+
+# Install dependencies and setup Zephyr
+RUN apt update && \
+    apt install -y python3 python3-pip python3-venv && \
+    pip install pyelftools west && \
+    python3 -m venv .venv && \
+    . .venv/bin/activate && \
+    west init -l zephyr && \
+    west update && \
+    west zephyr-export && \
+    pip install -r zephyr/scripts/requirements.txt
+
+# Run Twister tests
+RUN . .venv/bin/activate && \
+    export ZEPHYR_BASE=/zephyrproject/zephyr && \
+    export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+    
+# Final message
+CMD echo "Finished, Docker build!"
+

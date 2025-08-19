@@ -1,0 +1,260 @@
+#
+# Copyright (c) 2025 University of Birmingham, Added to support CHERI spec
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+#################################################################################
+# Build docker and run
+#################################################################################
+#Firstly clone this repo
+#To build wih all features: (takes several hours)
+# cd zephyrproject
+# docker build --no-cache -t cherizephyrimage -f zephyr/cheridocker/cheridockerfile .
+#To select features:
+# docker build --no-cache --build-arg FEATURE_CHERIBUILD=false --build-arg FEATURE_CODASIP=true -t cherizephyrimage -f zephyr/cheridocker/cheridockerfile.
+
+#To build wih buildx:
+# docker buildx build -t cherizephyrimage -f zephyr/cheridocker/cheridockerfile --load .
+# docker buildx build --build-arg FEATURE_CHERIBUILD=false --build-arg FEATURE_CODASIP=true -t cherizephyrimage -f zephyr/cheridocker/cheridockerfile --load .
+
+#To run
+# docker run -it cherizephyrimage bash
+
+#################################################################################
+# Running in docker:
+#################################################################################
+#In docker (for codasip core):
+# cd zephyrproject
+# source ~/zephyrproject/.venv/bin/activate
+# export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri
+# export LLVM_CHERI_TOOLCHAIN_PATH=/home/builder/llvm-cheri-codasip/build
+# export QEMU_BIN_PATH=/home/builder/qemu-codasip/build
+# cd zephyr
+#Run an app in QEMU:
+# west build -p always -b qemu_riscv64cheri samples/hello_world
+# west build -p always -b qemu_riscv64cheri_zcheripurecap samples/hello_world
+# west build -t run
+#Run a twister test:
+# python3 scripts/twister -p qemu_riscv64 -T samples/hello_world
+#Ctrl+C to stop QEMU
+
+#In docker (for cambs cheribuild):
+# cd zephyrproject
+# source ~/zephyrproject/.venv/bin/activate
+# export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri
+# export LLVM_CHERI_TOOLCHAIN_PATH=/home/builder/cheri/output/sdk
+# export QEMU_BIN_PATH=/home/builder/cheri/output/sdk/bin
+# cd zephyr
+# west build -p always -b qemu_riscv64cheri samples/hello_world
+# west build -p always -b qemu_riscv64cheri_purecap samples/hello_world
+# west build -t run
+#Ctrl+C to stop QEMU
+#################################################################################
+
+
+
+#################################################################################
+# Stage 1: Build
+#################################################################################
+
+FROM ubuntu:22.04 AS fetimage
+
+# Define build arguments (defaults to "true") - needs to come after FROM or does not get set
+ARG FEATURE_CHERIBUILD="true"
+ARG FEATURE_CODASIP="true"
+
+#-----------------------------------
+#Dependencies
+
+#Set non-interactive frontend for apt-get to skip any user confirmations
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt upgrade -y && \
+	apt install -y \
+		sudo \
+		wget
+
+RUN wget https://apt.kitware.com/kitware-archive.sh
+RUN sudo bash kitware-archive.sh
+RUN ln -fs /usr/share/zoneinfo/Europe/London /etc/localtime && echo "Europe/London" > /etc/timezone && apt install -y tzdata
+
+RUN sudo apt install -y \
+	git cmake ninja-build gperf ccache dfu-util device-tree-compiler python3-dev python3-pip python3-setuptools python3-tk python3-wheel \
+	xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 python3-venv autoconf automake libtool pkg-config clang bison \
+	samba flex texinfo time libglib2.0-dev libpixman-1-dev libarchive-dev libarchive-tools libbz2-dev libattr1-dev libcap-ng-dev \
+	libexpat1-dev  libgmp-dev libmpfr-dev libmpc-dev libncurses-dev libdebuginfod-dev bzip2
+#-----------------------------------
+#Create a non-root user - cheribuild causes fatal error if run as root
+
+RUN useradd -m -s /bin/bash builder && \
+    echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+#-----------------------------------
+
+
+#-----------------------------------
+#always create directories so COPY does not fail in final stage
+#Ensure the correct permissions before switching users
+
+RUN mkdir /home/builder/cheribuild && chown -R builder:builder /home/builder/cheribuild && \
+    mkdir /home/builder/cheri && chown -R builder:builder /home/builder/cheri && \
+    mkdir /home/builder/qemu-codasip && chown -R builder:builder /home/builder/qemu-codasip && \
+    mkdir /home/builder/llvm-cheri-codasip && chown -R builder:builder /home/builder/llvm-cheri-codasip && \
+    mkdir /home/builder/gdb-codasip && chown -R builder:builder /home/builder/gdb-codasip 
+
+#build for non root to avoid permissions warnings
+#everything now relative to builder directory
+USER builder
+RUN pip install pyelftools
+
+#-----------------------------------
+#Feature checks
+
+RUN echo "FEATURE_CODASIP=$FEATURE_CODASIP"
+RUN echo "FEATURE_CHERIBUILD=$FEATURE_CHERIBUILD"
+
+# Validate that at least one feature is enabled; otherwise, exit with an error
+RUN if [ "$FEATURE_CODASIP" = "false" ] && [ "$FEATURE_CHERIBUILD" = "false" ]; then \
+    echo "ERROR: At least one feature must be enabled! Exiting..."; \
+    exit 1; \
+fi || exit 1
+
+WORKDIR /home/builder/cheribuild
+# Install FEATURE_CHERIBUILD (only if it's enabled)
+RUN if [ "$FEATURE_CHERIBUILD" = "true" ]; then \
+    git clone --no-checkout https://github.com/CTSRD-CHERI/cheribuild.git /home/builder/cheribuild && \
+    git checkout df913531 && \
+    ./cheribuild.py freestanding-cheri-sdk -d -v; \	  
+fi
+
+WORKDIR /home/builder/qemu-codasip
+# Install FEATURE_CODASIP (only if it's enabled)
+RUN if [ "${FEATURE_CODASIP}" = "true" ]; then \
+	git clone --no-checkout --recurse-submodules --branch codasip-cheri-riscv_v3 https://github.com/CHERI-Alliance/qemu.git /home/builder/qemu-codasip && \
+    	git checkout 2a2e882b && \
+	mkdir build && \
+	cd build && \
+	 ../configure --target-list="riscv32cheri-softmmu riscv64cheri-softmmu" \
+	 --disable-gtk --audio-drv-list="" --disable-brlapi --disable-libiscsi \
+	 --disable-libnfs --disable-rbd --disable-sdl --disable-snappy \
+   	 --disable-vnc --disable-vnc-jpeg --disable-vnc-sasl --disable-l2tpv3 \
+   	 --disable-oss --disable-alsa --disable-tpm --disable-werror --meson=git && \
+	 ninja;\
+	 fi
+
+WORKDIR /home/builder/llvm-cheri-codasip
+# Install FEATURE_CODASIP (only if it's enabled)
+RUN if [ "${FEATURE_CODASIP}" = "true" ]; then \
+	git clone --no-checkout --recurse-submodules --branch codasip-cheri-riscv https://github.com/CHERI-Alliance/llvm-project.git /home/builder/llvm-cheri-codasip && \
+    	git checkout 1ca584e7 && \
+	mkdir build && \
+	cd build && \
+	cmake -DCMAKE_INSTALL_PREFIX=/llvm-cheri-codasip/build \
+	-DLLVM_TARGETS_TO_BUILD=RISCV \
+	-DLLVM_DEFAULT_TARGET_TRIPLE="riscv64-unknown-elf" \
+	-DLLVM_ENABLE_PROJECTS="clang;lld" \
+	-DCMAKE_BUILD_TYPE=Release \
+	-GNinja ../llvm/ \
+	-DLLVM_PARALLEL_LINK_JOBS=1 \
+	-DLLVM_USE_SPLIT_DWARF=ON \
+	-DBUILD_SHARED_LIBS=ON \
+	-Wno-dev && \
+	ninja -j1;\
+	 fi
+
+WORKDIR /home/builder/gdb-codasip
+# Install FEATURE_CODASIP (only if it's enabled)
+RUN if [ "${FEATURE_CODASIP}" = "true" ]; then \
+	git clone --no-checkout --recurse-submodules --branch codasip-cheri-riscv https://github.com/CHERI-Alliance/gdb.git /home/builder/gdb-codasip && \
+    	git checkout df929d4d && \
+	mkdir build && \
+	./configure --target=riscv64-unknown-elf --prefix=/home/builder/gdb-codasip/build && \
+	make && \
+	make install;\
+	 fi
+
+#create empty build directories if not created to prevent errors in next stage
+RUN mkdir -p /home/builder/cheri/output && \
+    mkdir -p /home/builder/qemu-codasip/build && \
+    mkdir -p /home/builder/llvm-cheri-codasip/build  && \
+    mkdir -p /home/builder/gdb-codasip/build 
+
+#################################################################################
+# Stage 2: Create runtime image
+#################################################################################
+
+FROM ubuntu:22.04 AS cherizephyrimage
+
+# Define build arguments (defaults to "true") - needs to come after FROM or does not get set
+ARG FEATURE_CHERIBUILD="true"
+ARG FEATURE_CODASIP="true"
+
+RUN echo "FEATURE_CODASIP=$FEATURE_CODASIP"
+RUN echo "FEATURE_CHERIBUILD=$FEATURE_CHERIBUILD"
+
+#-----------------------------------
+#Dependencies
+
+#Set non-interactive frontend for apt-get to skip any user confirmations
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt upgrade -y && \
+	apt install -y \
+		sudo 
+
+RUN ln -fs /usr/share/zoneinfo/Europe/London /etc/localtime && echo "Europe/London" > /etc/timezone && apt install -y tzdata
+
+RUN sudo apt install -y \
+	git cmake ninja-build gperf ccache dfu-util device-tree-compiler python3-dev python3-pip python3-setuptools python3-tk python3-wheel \
+	xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 python3-venv
+#-----------------------------------
+#Create a non-root user - cheribuild causes fatal error if run as root
+
+RUN useradd -m -s /bin/bash builder && \
+    echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+#-----------------------------------
+#Ensure the correct permissions before switching users (-p for multiple levels)
+
+RUN mkdir -p /home/builder/cheri/output && chown -R builder:builder /home/builder/cheri && \
+    mkdir -p /home/builder/qemu-codasip/build && chown -R builder:builder /home/builder/qemu-codasip && \
+    mkdir -p /home/builder/llvm-cheri-codasip/build && chown -R builder:builder /home/builder/llvm-cheri-codasip && \
+    mkdir -p /home/builder/gdb-codasip/build && chown -R builder:builder /home/builder/gdb-codasip && \
+    mkdir -p /home/builder/zephyrproject/zephyr && chown -R builder:builder /home/builder/zephyrproject
+
+#copy builds only
+#copy without setting permissions always results in root ownership, COPY always succeeds because the directory exists in Stage 1 - even if empty
+#always copy, if not included will copy empty dir.
+
+COPY --from=fetimage /home/builder/cheri/output /home/builder/cheri/output
+COPY --from=fetimage /home/builder/qemu-codasip/build /home/builder/qemu-codasip/build
+COPY --from=fetimage /home/builder/llvm-cheri-codasip/build /home/builder/llvm-cheri-codasip/build
+COPY --from=fetimage /home/builder/gdb-codasip/build  /home/builder/gdb-codasip/build 
+
+#this will copy as root
+COPY zephyr /home/builder/zephyrproject/zephyr
+RUN chown -R builder:builder /home/builder/zephyrproject
+
+#-----------------------------------
+#Install non-root dependencies
+
+WORKDIR /home/builder
+
+#install for non root to avoid permissions warnings
+USER builder
+RUN pip install pyelftools
+
+#-----------------------------------
+#Zephyr set up
+
+WORKDIR /home/builder/zephyrproject
+
+RUN python3 -m venv .venv && . .venv/bin/activate && \
+	pip install west && \
+	west init -l zephyr && \
+	west update && \
+	west zephyr-export && \
+	pip install -r zephyr/scripts/requirements.txt 
+
+#-----------------------------------
+
+CMD ["bash"]
+#################################################################################
