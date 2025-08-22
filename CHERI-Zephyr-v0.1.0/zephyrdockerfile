@@ -1,4 +1,4 @@
-# CHERI-Zephyr-v1.0.0
+# CHERI-Zephyr-v0.1.0
 # Use the Zephyr CI image as base
 FROM ghcr.io/zephyrproject-rtos/ci:v0.26.5
 

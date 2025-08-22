@@ -1,4 +1,4 @@
-# CHERI-Zephyr-v2.0.0
+# CHERI-Zephyr-v0.2.0
 #
 # Copyright (c) 2025 University of Birmingham, Added to support CHERI spec
 #
@@ -9,10 +9,10 @@
 #################################################################################
 # To build: (takes one hour)
 #  cd zephyrproject
-#  docker build --no-cache -t zephyrimage -f docker-release/CHERI-RISCV64-v2.0/zephyrdockerfile .
+#  docker build --no-cache -t zephyrimage -f docker-release/CHERI-Zephyr-v0.2.0/zephyrdockerfile .
 
 # To build wih buildx:
-#  docker buildx build -t zephyrimage -f docker-release/CHERI-RISCV64-v2.0/zephyrdockerfile --load .
+#  docker buildx build -t zephyrimage -f docker-release/CHERI-Zephyr-v0.2.0/zephyrdockerfile --load .
 # To run
 #  docker run -it zephyrimage bash
 #################################################################################
