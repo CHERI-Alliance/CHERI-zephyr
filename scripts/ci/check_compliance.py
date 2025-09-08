@@ -1050,6 +1050,7 @@ flagged.
         "BOOT_WATCHDOG_FEED",        # Used in (sysbuild-based) test
         "BT_6LOWPAN",  # Defined in Linux, mentioned in docs
         "CDC_ACM_PORT_NAME_",
+        "CHERI",  # only included if LLVM-CHERI toolchain is selected
         "CHRE",  # Optional module
         "CHRE_LOG_LEVEL_DBG",  # Optional module
         "CLOCK_STM32_SYSCLK_SRC_",
