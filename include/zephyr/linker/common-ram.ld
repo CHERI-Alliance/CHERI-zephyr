@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Please keep in sync with cmake/linker_script/common/common-ram.cmake */
+/*
+ * Modified to support CHERI 2023, University of Birmingham
+ */
 
 #include <zephyr/linker/iterable_sections.h>
 
@@ -58,10 +61,17 @@ ITERABLE_SECTION_RAM(scmi_protocol, Z_LINK_ITERABLE_SUBALIGN)
 #include "device-deps.ld"
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 #endif 	/* CONFIG_DEVICE_DEPS_DYNAMIC */
-
+	#ifdef CONFIG_CHERI
+	/* For 64 bit CHERI any sections storing capabilities need to be 16 byte aligned  */
+	ITERABLE_SECTION_RAM_GC_ALLOWED(log_mpsc_pbuf, 16)
+	ITERABLE_SECTION_RAM(log_msg_ptr, 16)
+	/* keep this section aligned to 4 bytes - the log_dynamic structure for each data is 8 bytes for RISCV64 */
+	ITERABLE_SECTION_RAM(log_dynamic, 4)
+	#else
 	ITERABLE_SECTION_RAM_GC_ALLOWED(log_mpsc_pbuf, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM(log_msg_ptr, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM(log_dynamic, Z_LINK_ITERABLE_SUBALIGN)
+	#endif
 
 #ifdef CONFIG_USERSPACE
 	/* All kernel objects within are assumed to be either completely
@@ -77,20 +87,35 @@ ITERABLE_SECTION_RAM(scmi_protocol, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_timer, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mem_slab, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_heap, Z_LINK_ITERABLE_SUBALIGN)
-	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mutex, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_stack, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_msgq, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mbox, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_pipe, Z_LINK_ITERABLE_SUBALIGN)
+
+	#ifdef CONFIG_CHERI
+	/* For 64 bit CHERI any sections storing capabilities need to be 16 byte aligned  */
+	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mutex, 16)
+	ITERABLE_SECTION_RAM_GC_ALLOWED(k_sem, 16)
+	ITERABLE_SECTION_RAM(net_buf_pool, 16)
+	#else
+	ITERABLE_SECTION_RAM_GC_ALLOWED(k_mutex, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_sem, Z_LINK_ITERABLE_SUBALIGN)
+		#ifdef CONFIG_64BIT
+		/*On 64bit CHERI-Flute RISCV64 (in non capability mode, i.e normal RISCV64) */
+		/*this needs to be aligned to 8 bytes otherwise a hardware alignment exception */
+		/*occurs, so set setting it to 8 for all CONFIG_64BIT*/
+		ITERABLE_SECTION_RAM(net_buf_pool, 8)
+		#else
+		ITERABLE_SECTION_RAM(net_buf_pool, Z_LINK_ITERABLE_SUBALIGN)
+		#endif
+	#endif
+
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_event, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_queue, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_fifo, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_lifo, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(k_condvar, Z_LINK_ITERABLE_SUBALIGN)
 	ITERABLE_SECTION_RAM_GC_ALLOWED(sys_mem_blocks_ptr, Z_LINK_ITERABLE_SUBALIGN)
-
-	ITERABLE_SECTION_RAM(net_buf_pool, Z_LINK_ITERABLE_SUBALIGN)
 
 #if defined(CONFIG_NETWORKING)
 	NETWORK_RAM_SECTIONS

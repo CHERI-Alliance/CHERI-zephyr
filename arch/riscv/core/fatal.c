@@ -2,6 +2,8 @@
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -10,6 +12,10 @@
 #include <inttypes.h>
 #include <zephyr/arch/common/exc_handle.h>
 #include <zephyr/logging/log.h>
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <stddef.h>
+#define CHERI_MASK 0x1f
+#endif
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 #ifdef CONFIG_USERSPACE
@@ -21,11 +27,11 @@ static const struct z_exc_handle exceptions[] = {
 #endif /* CONFIG_USERSPACE */
 
 #if __riscv_xlen == 32
- #define PR_REG "%08" PRIxPTR
- #define NO_REG "        "
+#define PR_REG "%08" PRIxPTR
+#define NO_REG "        "
 #elif __riscv_xlen == 64
- #define PR_REG "%016" PRIxPTR
- #define NO_REG "                "
+#define PR_REG "%016" PRIxPTR
+#define NO_REG "                "
 #endif
 
 /* Stack trace function */
@@ -45,7 +51,11 @@ uintptr_t z_riscv_get_sp_before_exc(const struct arch_esf *esf)
 		 * Exception happened in user space:
 		 * consider the saved user stack instead.
 		 */
+#ifdef __CHERI_PURE_CAPABILITY__
+		sp = esf->csp;
+#else
 		sp = esf->sp;
+#endif
 	}
 #endif
 
@@ -54,7 +64,7 @@ uintptr_t z_riscv_get_sp_before_exc(const struct arch_esf *esf)
 
 const char *z_riscv_mcause_str(unsigned long cause)
 {
-	static const char *const mcause_str[17] = {
+	static const char *const mcause_str[29] = {
 		[0] = "Instruction address misaligned",
 		[1] = "Instruction Access fault",
 		[2] = "Illegal instruction",
@@ -71,14 +81,51 @@ const char *z_riscv_mcause_str(unsigned long cause)
 		[13] = "Load page fault",
 		[14] = "unknown",
 		[15] = "Store/AMO page fault",
-		[16] = "unknown",
+		[16 ... 25] = "unknown",
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* see CHERI spec - riscv */
+		[26] "Load capability page fault",
+		[27] "Store/AMO capability page fault",
+		[28] "CHERI exception",
+#endif
 	};
 
 	return mcause_str[MIN(cause, ARRAY_SIZE(mcause_str) - 1)];
 }
 
-FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
-				       const struct arch_esf *esf)
+#ifdef __CHERI_PURE_CAPABILITY__
+const char *z_riscv_cap_cause_str(unsigned long mtval)
+{
+	uint8_t exccode;
+
+	exccode = mtval & CHERI_MASK;
+
+	static const char *const cap_cause_str[29] = {
+		[0] = "None",
+		[1] = "CHERI length violation",
+		[2] = "CHERI tag violation",
+		[3] = "CHERI seal violation",
+		[4] = "CHERI type violation",
+		[5 ... 7] = "CHERI exception - unknown code",
+		[8] = "CHERI permissions violation",
+		[9] = "CHERI exception - unknown code",
+		[10] = "CHERI bounds cannot be represented",
+		[11] = "CHERI unaligned pcc base",
+		[12 ... 15] = "CHERI exception - unknown code",
+		[16] = "CHERI global violation",
+		[17 ... 21] = "CHERI permissions violation",
+		[22] = "CHERI permit store local capability violation",
+		[23] = "CHERI exception - unknown code",
+		[24] = "CHERI access system registers violation",
+		[25] = "CHERI permit cinvoke violation",
+		[26] = "CHERI exception - unknown code",
+		[27 ... 28] = "CHERI permissions violation",
+	};
+	return cap_cause_str[MIN(exccode, ARRAY_SIZE(cap_cause_str) - 1)];
+}
+#endif
+
+FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason, const struct arch_esf *esf)
 {
 	z_riscv_fatal_error_csf(reason, esf, NULL);
 }
@@ -88,7 +135,7 @@ FUNC_NORETURN void z_riscv_fatal_error_csf(unsigned int reason, const struct arc
 {
 	unsigned long mcause;
 
-	__asm__ volatile("csrr %0, mcause" : "=r" (mcause));
+	__asm__ volatile("csrr %0, mcause" : "=r"(mcause));
 
 	mcause &= CONFIG_RISCV_MCAUSE_EXCEPTION_MASK;
 	LOG_ERR("");
@@ -97,37 +144,100 @@ FUNC_NORETURN void z_riscv_fatal_error_csf(unsigned int reason, const struct arc
 #ifndef CONFIG_SOC_OPENISA_RV32M1
 	unsigned long mtval;
 
-	__asm__ volatile("csrr %0, mtval" : "=r" (mtval));
+	__asm__ volatile("csrr %0, mtval" : "=r"(mtval));
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* log specific CHERI violation */
+	LOG_ERR(" mtval: %ld, %s", mtval, z_riscv_cap_cause_str(mtval));
+#else
 	LOG_ERR("  mtval: %lx", mtval);
+#endif
 #endif /* CONFIG_SOC_OPENISA_RV32M1 */
 
 #ifdef CONFIG_EXCEPTION_DEBUG
 	if (esf != NULL) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/*
+		 * Cast to unsigned long before printing or change PR_REG format.
+		 * To print unsigned long we need to cast from pointer type to unsigned long,
+		 * which are different sizes in CHERI.
+		 */
+
+		LOG_ERR("     ca0: " PR_REG "    ct0: " PR_REG, (unsigned long)esf->ca0,
+			(unsigned long)esf->ct0);
+		LOG_ERR("     ca1: " PR_REG "    ct1: " PR_REG, (unsigned long)esf->ca1,
+			(unsigned long)esf->ct1);
+		LOG_ERR("     ca2: " PR_REG "    ct2: " PR_REG, (unsigned long)esf->ca2,
+			(unsigned long)esf->ct2);
+#else
 		LOG_ERR("     a0: " PR_REG "    t0: " PR_REG, esf->a0, esf->t0);
 		LOG_ERR("     a1: " PR_REG "    t1: " PR_REG, esf->a1, esf->t1);
 		LOG_ERR("     a2: " PR_REG "    t2: " PR_REG, esf->a2, esf->t2);
+#endif
 #if defined(CONFIG_RISCV_ISA_RV32E)
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     ca3: " PR_REG, (unsigned long)esf->ca3);
+		LOG_ERR("     ca4: " PR_REG, (unsigned long)esf->ca4);
+		LOG_ERR("     ca5: " PR_REG, (unsigned long)esf->ca5);
+#else
 		LOG_ERR("     a3: " PR_REG, esf->a3);
 		LOG_ERR("     a4: " PR_REG, esf->a4);
 		LOG_ERR("     a5: " PR_REG, esf->a5);
+#endif
+#else
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     ca3: " PR_REG "    ct3: " PR_REG, (unsigned long)esf->ca3,
+			(unsigned long)esf->ct3);
+		LOG_ERR("     ca4: " PR_REG "    ct4: " PR_REG, (unsigned long)esf->ca4,
+			(unsigned long)esf->ct4);
+		LOG_ERR("     ca5: " PR_REG "    ct5: " PR_REG, (unsigned long)esf->ca5,
+			(unsigned long)esf->ct5);
+		LOG_ERR("     ca6: " PR_REG "    ct6: " PR_REG, (unsigned long)esf->ca6,
+			(unsigned long)esf->ct6);
+		LOG_ERR("     ca7: " PR_REG, (unsigned long)esf->ca7);
 #else
 		LOG_ERR("     a3: " PR_REG "    t3: " PR_REG, esf->a3, esf->t3);
 		LOG_ERR("     a4: " PR_REG "    t4: " PR_REG, esf->a4, esf->t4);
 		LOG_ERR("     a5: " PR_REG "    t5: " PR_REG, esf->a5, esf->t5);
 		LOG_ERR("     a6: " PR_REG "    t6: " PR_REG, esf->a6, esf->t6);
 		LOG_ERR("     a7: " PR_REG, esf->a7);
+#endif
 #endif /* CONFIG_RISCV_ISA_RV32E */
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     csp: " PR_REG, (unsigned long)z_riscv_get_sp_before_exc(esf));
+		LOG_ERR("     cra: " PR_REG, (unsigned long)esf->cra);
+		LOG_ERR("   mepcc: " PR_REG, (unsigned long)esf->mepcc);
+#else
 		LOG_ERR("     sp: " PR_REG, z_riscv_get_sp_before_exc(esf));
 		LOG_ERR("     ra: " PR_REG, esf->ra);
 		LOG_ERR("   mepc: " PR_REG, esf->mepc);
+#endif
 		LOG_ERR("mstatus: " PR_REG, esf->mstatus);
 		LOG_ERR("");
 	}
 
 	if (csf != NULL) {
 #if defined(CONFIG_RISCV_ISA_RV32E)
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     cs0: " PR_REG, (unsigned long)csf->cs0);
+		LOG_ERR("     cs1: " PR_REG, (unsigned long)csf->cs1);
+#else
 		LOG_ERR("     s0: " PR_REG, csf->s0);
 		LOG_ERR("     s1: " PR_REG, csf->s1);
+#endif
+#else
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("     cs0: " PR_REG "    cs6: " PR_REG, (unsigned long)csf->cs0,
+			(unsigned long)csf->cs6);
+		LOG_ERR("     cs1: " PR_REG "    cs7: " PR_REG, (unsigned long)csf->cs1,
+			(unsigned long)csf->cs7);
+		LOG_ERR("     cs2: " PR_REG "    cs8: " PR_REG, (unsigned long)csf->cs2,
+			(unsigned long)csf->cs8);
+		LOG_ERR("     cs3: " PR_REG "    cs9: " PR_REG, (unsigned long)csf->cs3,
+			(unsigned long)csf->cs9);
+		LOG_ERR("     cs4: " PR_REG "   cs10: " PR_REG, (unsigned long)csf->cs4,
+			(unsigned long)csf->cs10);
+		LOG_ERR("     cs5: " PR_REG "   cs11: " PR_REG, (unsigned long)csf->cs5,
+			(unsigned long)csf->cs11);
 #else
 		LOG_ERR("     s0: " PR_REG "    s6: " PR_REG, csf->s0, csf->s6);
 		LOG_ERR("     s1: " PR_REG "    s7: " PR_REG, csf->s1, csf->s7);
@@ -135,6 +245,7 @@ FUNC_NORETURN void z_riscv_fatal_error_csf(unsigned int reason, const struct arc
 		LOG_ERR("     s3: " PR_REG "    s9: " PR_REG, csf->s3, csf->s9);
 		LOG_ERR("     s4: " PR_REG "   s10: " PR_REG, csf->s4, csf->s10);
 		LOG_ERR("     s5: " PR_REG "   s11: " PR_REG, csf->s5, csf->s11);
+#endif
 #endif /* CONFIG_RISCV_ISA_RV32E */
 		LOG_ERR("");
 	}
@@ -158,24 +269,21 @@ static bool bad_stack_pointer(struct arch_esf *esf)
 	uintptr_t sp = (uintptr_t)esf + sizeof(struct arch_esf);
 
 #ifdef CONFIG_USERSPACE
-	if (_current->arch.priv_stack_start != 0 &&
-	    sp >= _current->arch.priv_stack_start &&
-	    sp <  _current->arch.priv_stack_start + Z_RISCV_STACK_GUARD_SIZE) {
+	if (_current->arch.priv_stack_start != 0 && sp >= _current->arch.priv_stack_start &&
+	    sp < _current->arch.priv_stack_start + Z_RISCV_STACK_GUARD_SIZE) {
 		return true;
 	}
 
 	if (z_stack_is_user_capable(_current->stack_obj) &&
 	    sp >= _current->stack_info.start - K_THREAD_STACK_RESERVED &&
-	    sp <  _current->stack_info.start - K_THREAD_STACK_RESERVED
-		  + Z_RISCV_STACK_GUARD_SIZE) {
+	    sp < _current->stack_info.start - K_THREAD_STACK_RESERVED + Z_RISCV_STACK_GUARD_SIZE) {
 		return true;
 	}
 #endif /* CONFIG_USERSPACE */
 
 #if CONFIG_MULTITHREADING
 	if (sp >= _current->stack_info.start - K_KERNEL_STACK_RESERVED &&
-	    sp <  _current->stack_info.start - K_KERNEL_STACK_RESERVED
-		  + Z_RISCV_STACK_GUARD_SIZE) {
+	    sp < _current->stack_info.start - K_KERNEL_STACK_RESERVED + Z_RISCV_STACK_GUARD_SIZE) {
 		return true;
 	}
 #else
@@ -190,14 +298,24 @@ static bool bad_stack_pointer(struct arch_esf *esf)
 #endif /* CONFIG_PMP_STACK_GUARD */
 
 #ifdef CONFIG_USERSPACE
+
+#ifdef __CHERI_PURE_CAPABILITY__
 	if ((esf->mstatus & MSTATUS_MPP) == 0 &&
-	    (esf->sp < _current->stack_info.start ||
-	     esf->sp > _current->stack_info.start +
-		       _current->stack_info.size -
-		       _current->stack_info.delta)) {
+	    (esf->csp < _current->stack_info.start ||
+	     esf->csp > _current->stack_info.start + _current->stack_info.size -
+				_current->stack_info.delta)) {
 		/* user stack pointer moved outside of its allowed stack */
 		return true;
 	}
+#else
+	if ((esf->mstatus & MSTATUS_MPP) == 0 &&
+	    (esf->sp < _current->stack_info.start ||
+	     esf->sp > _current->stack_info.start + _current->stack_info.size -
+			       _current->stack_info.delta)) {
+		/* user stack pointer moved outside of its allowed stack */
+		return true;
+	}
+#endif
 #endif
 
 	return false;
@@ -213,11 +331,17 @@ void z_riscv_fault(struct arch_esf *esf)
 	for (int i = 0; i < ARRAY_SIZE(exceptions); i++) {
 		unsigned long start = (unsigned long)exceptions[i].start;
 		unsigned long end = (unsigned long)exceptions[i].end;
-
+#ifdef __CHERI_PURE_CAPABILITY__
+		if (esf->mepcc >= start && esf->mepcc < end) {
+			esf->mepcc = (uintptr_t)exceptions[i].fixup;
+			return;
+		}
+#else
 		if (esf->mepc >= start && esf->mepc < end) {
 			esf->mepc = (unsigned long)exceptions[i].fixup;
 			return;
 		}
+#endif
 	}
 #endif /* CONFIG_USERSPACE */
 
@@ -248,8 +372,7 @@ void z_impl_user_fault(unsigned int reason)
 {
 	struct arch_esf *oops_esf = _current->syscall_frame;
 
-	if (((_current->base.user_options & K_USER) != 0) &&
-		reason != K_ERR_STACK_CHK_FAIL) {
+	if (((_current->base.user_options & K_USER) != 0) && reason != K_ERR_STACK_CHK_FAIL) {
 		reason = K_ERR_KERNEL_OOPS;
 	}
 	z_riscv_fatal_error(reason, oops_esf);

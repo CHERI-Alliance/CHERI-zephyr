@@ -2,6 +2,8 @@
  * Copyright (c) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/init.h>
@@ -28,8 +30,7 @@ extern void __start(void);
 void soc_interrupt_init(void);
 #endif
 
-void arch_cpu_start(int cpu_num, k_thread_stack_t *stack, int sz,
-		    arch_cpustart_t fn, void *arg)
+void arch_cpu_start(int cpu_num, k_thread_stack_t *stack, int sz, arch_cpustart_t fn, void *arg)
 {
 	riscv_cpu_init[cpu_num].fn = fn;
 	riscv_cpu_init[cpu_num].arg = arg;
@@ -59,12 +60,24 @@ void arch_secondary_cpu_init(int hartid)
 			cpu_num = i;
 		}
 	}
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* CHERI extends mscratch register to mscratchc */
+	csr_cap_write(mscratchc, &_kernel.cpus[cpu_num]);
+#else
 	csr_write(mscratch, &_kernel.cpus[cpu_num]);
+#endif
 #ifdef CONFIG_SMP
 	_kernel.cpus[cpu_num].arch.online = true;
 #endif
 #if defined(CONFIG_MULTITHREADING) && defined(CONFIG_THREAD_LOCAL_STORAGE)
-	__asm__("mv tp, %0" : : "r" (z_idle_threads[cpu_num].tls));
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* CHERI extends thread pointer register tp to ctp */
+	/* assign like this to remove error: couldn't allocate input reg for constraint 'r' */
+	register uintptr_t ca0 __asm__("ca0") = (uintptr_t)z_idle_threads[cpu_num].tls;
+	__asm__("cmove ctp, %0" : : "r"(ca0));
+#else
+	__asm__("mv tp, %0" : : "r"(z_idle_threads[cpu_num].tls));
+#endif
 #endif
 #if defined(CONFIG_RISCV_SOC_INTERRUPT_INIT)
 	soc_interrupt_init();

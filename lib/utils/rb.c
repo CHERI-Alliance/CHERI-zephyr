@@ -16,7 +16,10 @@
 #include <zephyr/sys/rb.h>
 #include <stdbool.h>
 
-enum rb_color { RED = 0U, BLACK = 1U };
+enum rb_color {
+	RED = 0U,
+	BLACK = 1U
+};
 
 static struct rbnode *get_child(struct rbnode *n, uint8_t side)
 {
@@ -25,10 +28,10 @@ static struct rbnode *get_child(struct rbnode *n, uint8_t side)
 		return n->children[1];
 	}
 
-	uintptr_t l = (uintptr_t) n->children[0];
+	uintptr_t l = (uintptr_t)n->children[0];
 
 	l &= ~1UL;
-	return (struct rbnode *) l;
+	return (struct rbnode *)l;
 }
 
 static void set_child(struct rbnode *n, uint8_t side, void *val)
@@ -37,10 +40,23 @@ static void set_child(struct rbnode *n, uint8_t side, void *val)
 	if (side != 0U) {
 		n->children[1] = val;
 	} else {
-		uintptr_t old = (uintptr_t) n->children[0];
-		uintptr_t new = (uintptr_t) val;
-
-		n->children[0] = (void *) (new | (old & 1UL));
+		uintptr_t old = (uintptr_t)n->children[0];
+		uintptr_t new = (uintptr_t)val;
+		/*
+		 * When compiling for purecap with llvm-cheri we get a compiler warning, leading to
+		 * a twister test failure:Add commentMore actions warning: binary expression on
+		 * capability types 'uintptr_t' (aka 'unsigned __intcap') and 'uintptr_t'; it is not
+		 * clear which should be used as the source of provenance; currently provenance is
+		 * inherited from the left-hand side [-Wcheri-provenance]. CHERI C++ guide says to:
+		 * The suggested fix for this problem is to cast the non-pointer argument to an
+		 * integer type using (size_t) n->children[0] = (void *) (new | (old & 1UL));
+		 * n->children[0] = (void *)(new|(size_t)(old & 1UL));
+		 */
+#ifdef __CHERI_PURE_CAPABILITY__
+		n->children[0] = (void *)(new | (size_t)(old & 1UL));
+#else
+		n->children[0] = (void *)(new | (old & 1UL));
+#endif
 	}
 }
 
@@ -64,7 +80,7 @@ static void set_color(struct rbnode *n, enum rb_color color)
 {
 	CHECK(n);
 
-	uintptr_t *p = (void *) &n->children[0];
+	uintptr_t *p = (void *)&n->children[0];
 
 	*p = (*p & ~1UL) | (uint8_t)color;
 }
@@ -76,8 +92,7 @@ static void set_color(struct rbnode *n, enum rb_color color)
  * contain at least tree->max_depth entries!  Returns the number of
  * entries pushed onto the stack.
  */
-static int find_and_stack(struct rbtree *tree, struct rbnode *node,
-			  struct rbnode **stack)
+static int find_and_stack(struct rbtree *tree, struct rbnode *node, struct rbnode **stack)
 {
 	int sz = 0;
 
@@ -103,8 +118,7 @@ struct rbnode *z_rb_get_minmax(struct rbtree *tree, uint8_t side)
 {
 	struct rbnode *n;
 
-	for (n = tree->root; (n != NULL) && (get_child(n, side) != NULL);
-			n = get_child(n, side)) {
+	for (n = tree->root; (n != NULL) && (get_child(n, side) != NULL); n = get_child(n, side)) {
 		;
 	}
 	return n;
@@ -161,10 +175,8 @@ static void fix_extra_red(struct rbnode **stack, int stacksz)
 		struct rbnode *parent = stack[stacksz - 2];
 
 		/* Correct child colors are a precondition of the loop */
-		CHECK((get_child(node, 0U) == NULL) ||
-		      is_black(get_child(node, 0U)));
-		CHECK((get_child(node, 1U) == NULL) ||
-		      is_black(get_child(node, 1U)));
+		CHECK((get_child(node, 0U) == NULL) || is_black(get_child(node, 0U)));
+		CHECK((get_child(node, 1U) == NULL) || is_black(get_child(node, 1U)));
 
 		if (is_black(parent)) {
 			return;
@@ -177,8 +189,7 @@ static void fix_extra_red(struct rbnode **stack, int stacksz)
 
 		struct rbnode *grandparent = stack[stacksz - 3];
 		uint8_t side = get_side(grandparent, parent);
-		struct rbnode *aunt = get_child(grandparent,
-						(side == 0U) ? 1U : 0U);
+		struct rbnode *aunt = get_child(grandparent, (side == 0U) ? 1U : 0U);
 
 		if ((aunt != NULL) && is_red(aunt)) {
 			set_color(grandparent, RED);
@@ -266,8 +277,7 @@ void rb_insert(struct rbtree *tree, struct rbnode *node)
  * then clean it up (replace it with a simple NULL child in the
  * parent) when finished.
  */
-static void fix_missing_black(struct rbnode **stack, int stacksz,
-			      struct rbnode *null_node)
+static void fix_missing_black(struct rbnode **stack, int stacksz, struct rbnode *null_node)
 {
 	/* Loop upward until we reach the root */
 	while (stacksz > 1) {
@@ -275,8 +285,7 @@ static void fix_missing_black(struct rbnode **stack, int stacksz,
 		struct rbnode *n = stack[stacksz - 1];
 		struct rbnode *parent = stack[stacksz - 2];
 		uint8_t n_side = get_side(parent, n);
-		struct rbnode *sib = get_child(parent,
-					       (n_side == 0U) ? 1U : 0U);
+		struct rbnode *sib = get_child(parent, (n_side == 0U) ? 1U : 0U);
 
 		CHECK(is_black(n));
 
@@ -304,8 +313,7 @@ static void fix_missing_black(struct rbnode **stack, int stacksz,
 		 */
 		c0 = get_child(sib, 0U);
 		c1 = get_child(sib, 1U);
-		if (((c0 == NULL) || is_black(c0)) && ((c1 == NULL) ||
-					is_black(c1))) {
+		if (((c0 == NULL) || is_black(c0)) && ((c1 == NULL) || is_black(c1))) {
 			if (n == null_node) {
 				set_child(parent, n_side, NULL);
 			}
@@ -450,8 +458,7 @@ void rb_remove(struct rbtree *tree, struct rbnode *node)
 		set_color(node2, ctmp);
 	}
 
-	CHECK((get_child(node, 0U) == NULL) ||
-	      (get_child(node, 1U) == NULL));
+	CHECK((get_child(node, 0U) == NULL) || (get_child(node, 1U) == NULL));
 
 	struct rbnode *child = get_child(node, 0U);
 
@@ -537,8 +544,7 @@ bool rb_contains(struct rbtree *tree, struct rbnode *node)
  * node to iterate.  By construction node will always be a right child
  * or the root, so is_left must be false.
  */
-static inline struct rbnode *stack_left_limb(struct rbnode *n,
-					     struct _rb_foreach *f)
+static inline struct rbnode *stack_left_limb(struct rbnode *n, struct _rb_foreach *f)
 {
 	f->top++;
 	f->stack[f->top] = n;

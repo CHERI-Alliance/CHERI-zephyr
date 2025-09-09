@@ -2,6 +2,8 @@
  * Copyright (c) 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef ZEPHYR_INCLUDE_SYS_CBPRINTF_H_
@@ -85,9 +87,11 @@ union cbprintf_package_hdr {
 	void *raw2[2];
 #endif
 
+#ifdef __CHERI_PURE_CAPABILITY__
+} __aligned(16);
+#else
 } __packed;
-
-
+#endif
 
 /** @brief cbprintf package header with format string pointer.
  *
@@ -104,8 +108,11 @@ struct cbprintf_package_hdr_ext {
 	 * When extending this struct, make sure this align
 	 * to pointer size.
 	 */
+#ifdef __CHERI_PURE_CAPABILITY__
+} __aligned(16);
+#else
 } __packed;
-
+#endif
 
 /**
  * @cond INTERNAL_HIDDEN
@@ -134,16 +141,19 @@ extern "C" {
  */
 
 /** @brief Required alignment of the buffer used for packaging. */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* 16 byte aligned for 64bit CHERI */
+#define CBPRINTF_PACKAGE_ALIGNMENT 16
+#else
 #ifdef __xtensa__
 #define CBPRINTF_PACKAGE_ALIGNMENT 16
 #else
-#define CBPRINTF_PACKAGE_ALIGNMENT \
+#define CBPRINTF_PACKAGE_ALIGNMENT                                                                 \
 	Z_POW2_CEIL(COND_CODE_1(CONFIG_CBPRINTF_PACKAGE_LONGDOUBLE, \
 		(sizeof(long double)), (MAX(sizeof(double), sizeof(long long)))))
 #endif
-
+#endif
 BUILD_ASSERT(Z_IS_POW2(CBPRINTF_PACKAGE_ALIGNMENT));
-
 
 /**@defgroup CBPRINTF_PACKAGE_FLAGS Package flags
  * @{
@@ -164,9 +174,9 @@ BUILD_ASSERT(Z_IS_POW2(CBPRINTF_PACKAGE_ALIGNMENT));
  */
 #define CBPRINTF_PACKAGE_ADD_RW_STR_POS BIT(2)
 
-#define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_BITS 3
+#define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_BITS   3
 #define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_OFFSET 3
-#define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_MASK BIT_MASK(Z_CBPRINTF_PACKAGE_FIRST_RO_STR_BITS)
+#define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_MASK   BIT_MASK(Z_CBPRINTF_PACKAGE_FIRST_RO_STR_BITS)
 
 /** @brief Indicate that @p n first string format arguments are char pointers to
  * read-only location.
@@ -175,13 +185,12 @@ BUILD_ASSERT(Z_IS_POW2(CBPRINTF_PACKAGE_ALIGNMENT));
  *
  * @param n Number of string arguments considered as read-only.
  */
-#define CBPRINTF_PACKAGE_FIRST_RO_STR_CNT(n) \
-	(n << Z_CBPRINTF_PACKAGE_FIRST_RO_STR_OFFSET)
+#define CBPRINTF_PACKAGE_FIRST_RO_STR_CNT(n) (n << Z_CBPRINTF_PACKAGE_FIRST_RO_STR_OFFSET)
 
 /** @brief Get number of first format string arguments which are known to be read-only
  * string.
  */
-#define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_CNT_GET(flags) \
+#define Z_CBPRINTF_PACKAGE_FIRST_RO_STR_CNT_GET(flags)                                             \
 	(((flags) >> Z_CBPRINTF_PACKAGE_FIRST_RO_STR_OFFSET) & Z_CBPRINTF_PACKAGE_FIRST_RO_STR_MASK)
 
 /** @brief Append indexes of read-only string arguments in the package.
@@ -190,7 +199,7 @@ BUILD_ASSERT(Z_IS_POW2(CBPRINTF_PACKAGE_ALIGNMENT));
  * with that information can be converted to fully self-contain package using
  * @ref cbprintf_fsc_package.
  */
-#define CBPRINTF_PACKAGE_ADD_STRING_IDXS \
+#define CBPRINTF_PACKAGE_ADD_STRING_IDXS                                                           \
 	(CBPRINTF_PACKAGE_ADD_RO_STR_POS | CBPRINTF_PACKAGE_CONST_CHAR_RO)
 
 /** @brief Indicate the incoming arguments are tagged.
@@ -330,8 +339,8 @@ typedef int (*cbprintf_convert_cb)(const void *buf, size_t len, void *ctx);
  * @return vprintf like return values: the number of characters printed,
  * or a negative error value returned from external formatter.
  */
-typedef int (*cbvprintf_external_formatter_func)(cbprintf_cb out, void *ctx,
-						 const char *fmt, va_list ap);
+typedef int (*cbvprintf_external_formatter_func)(cbprintf_cb out, void *ctx, const char *fmt,
+						 va_list ap);
 
 /** @brief Determine if string must be packaged in run time.
  *
@@ -350,7 +359,7 @@ typedef int (*cbvprintf_external_formatter_func)(cbprintf_cb out, void *ctx,
  * @retval 1 if string must be packaged in run time.
  * @retval 0 string can be statically packaged.
  */
-#define CBPRINTF_MUST_RUNTIME_PACKAGE(flags, ... /* fmt, ... */) \
+#define CBPRINTF_MUST_RUNTIME_PACKAGE(flags, ... /* fmt, ... */)                                   \
 	Z_CBPRINTF_MUST_RUNTIME_PACKAGE(flags, __VA_ARGS__)
 
 /** @brief Statically package string.
@@ -382,10 +391,8 @@ typedef int (*cbvprintf_external_formatter_func)(cbprintf_cb out, void *ctx,
  *
  * @param ... formatted string with arguments. Format string must be constant.
  */
-#define CBPRINTF_STATIC_PACKAGE(packaged, inlen, outlen, align_offset, flags, \
-				... /* fmt, ... */) \
-	Z_CBPRINTF_STATIC_PACKAGE(packaged, inlen, outlen, \
-				  align_offset, flags, __VA_ARGS__)
+#define CBPRINTF_STATIC_PACKAGE(packaged, inlen, outlen, align_offset, flags, ... /* fmt, ... */)  \
+	Z_CBPRINTF_STATIC_PACKAGE(packaged, inlen, outlen, align_offset, flags, __VA_ARGS__)
 
 /** @brief Capture state required to output formatted data later.
  *
@@ -427,12 +434,8 @@ typedef int (*cbvprintf_external_formatter_func)(cbprintf_cb out, void *ctx,
  * @retval -ENOSPC if @p packaged was not null and the space required to store
  * exceed @p len.
  */
-__printf_like(4, 5)
-int cbprintf_package(void *packaged,
-		     size_t len,
-		     uint32_t flags,
-		     const char *format,
-		     ...);
+__printf_like(4, 5) int cbprintf_package(void *packaged, size_t len, uint32_t flags,
+					 const char *format, ...);
 
 /** @brief Capture state required to output formatted data later.
  *
@@ -468,11 +471,7 @@ int cbprintf_package(void *packaged,
  * @retval -ENOSPC if @p packaged was not null and the space required to store
  * exceed @p len.
  */
-int cbvprintf_package(void *packaged,
-		      size_t len,
-		      uint32_t flags,
-		      const char *format,
-		      va_list ap);
+int cbvprintf_package(void *packaged, size_t len, uint32_t flags, const char *format, va_list ap);
 
 /** @brief Convert a package.
  *
@@ -509,13 +508,8 @@ int cbvprintf_package(void *packaged,
  * @retval -ENOSPC if @p packaged was not null and the space required to store
  * exceed @p len.
  */
-int cbprintf_package_convert(void *in_packaged,
-			     size_t in_len,
-			     cbprintf_convert_cb cb,
-			     void *ctx,
-			     uint32_t flags,
-			     uint16_t *strl,
-			     size_t strl_len);
+int cbprintf_package_convert(void *in_packaged, size_t in_len, cbprintf_convert_cb cb, void *ctx,
+			     uint32_t flags, uint16_t *strl, size_t strl_len);
 
 /* @internal Context used for package copying. */
 struct z_cbprintf_buf_desc {
@@ -569,13 +563,8 @@ static inline int z_cbprintf_cpy(const void *buf, size_t len, void *ctx)
  * @retval -ENOSPC if @p packaged was not null and the space required to store
  * exceed @p len.
  */
-static inline int cbprintf_package_copy(void *in_packaged,
-					size_t in_len,
-					void *packaged,
-					size_t len,
-					uint32_t flags,
-					uint16_t *strl,
-					size_t strl_len)
+static inline int cbprintf_package_copy(void *in_packaged, size_t in_len, void *packaged,
+					size_t len, uint32_t flags, uint16_t *strl, size_t strl_len)
 {
 	struct z_cbprintf_buf_desc buf_desc = {
 		.buf = packaged,
@@ -583,9 +572,8 @@ static inline int cbprintf_package_copy(void *in_packaged,
 		.off = 0,
 	};
 
-	return cbprintf_package_convert(in_packaged, in_len,
-					packaged ? z_cbprintf_cpy : NULL, &buf_desc,
-					flags, strl, strl_len);
+	return cbprintf_package_convert(in_packaged, in_len, packaged ? z_cbprintf_cpy : NULL,
+					&buf_desc, flags, strl, strl_len);
 }
 
 /** @brief Convert package to fully self-contained (fsc) package.
@@ -617,14 +605,11 @@ static inline int cbprintf_package_copy(void *in_packaged,
  * exceed @p len.
  * @retval -EINVAL if @p in_packaged is null.
  */
-static inline int cbprintf_fsc_package(void *in_packaged,
-				       size_t in_len,
-				       void *packaged,
-				       size_t len)
+static inline int cbprintf_fsc_package(void *in_packaged, size_t in_len, void *packaged, size_t len)
 {
-	return cbprintf_package_copy(in_packaged, in_len, packaged, len,
-				     CBPRINTF_PACKAGE_CONVERT_RO_STR |
-				     CBPRINTF_PACKAGE_CONVERT_RW_STR, NULL, 0);
+	return cbprintf_package_copy(
+		in_packaged, in_len, packaged, len,
+		CBPRINTF_PACKAGE_CONVERT_RO_STR | CBPRINTF_PACKAGE_CONVERT_RW_STR, NULL, 0);
 }
 
 /** @brief Generate the output for a previously captured format
@@ -647,9 +632,7 @@ static inline int cbprintf_fsc_package(void *in_packaged,
  * @return printf like return values: the number of characters printed,
  * or a negative error value returned from external formatter.
  */
-int cbpprintf_external(cbprintf_cb out,
-		       cbvprintf_external_formatter_func formatter,
-		       void *ctx,
+int cbpprintf_external(cbprintf_cb out, cbvprintf_external_formatter_func formatter, void *ctx,
 		       void *packaged);
 
 /** @brief *printf-like output through a callback.
@@ -678,8 +661,7 @@ int cbpprintf_external(cbprintf_cb out,
  * @return the number of characters printed, or a negative error value
  * returned from invoking @p out.
  */
-__printf_like(3, 4)
-int cbprintf(cbprintf_cb out, void *ctx, const char *format, ...);
+__printf_like(3, 4) int cbprintf(cbprintf_cb out, void *ctx, const char *format, ...);
 
 /** @brief varargs-aware *printf-like output through a callback.
  *
@@ -709,8 +691,7 @@ int cbprintf(cbprintf_cb out, void *ctx, const char *format, ...);
  * @return the number of characters generated, or a negative error value
  * returned from invoking @p out.
  */
-int z_cbvprintf_impl(cbprintf_cb out, void *ctx, const char *format,
-		     va_list ap, uint32_t flags);
+int z_cbvprintf_impl(cbprintf_cb out, void *ctx, const char *format, va_list ap, uint32_t flags);
 
 /** @brief varargs-aware *printf-like output through a callback.
  *
@@ -740,8 +721,7 @@ int z_cbvprintf_impl(cbprintf_cb out, void *ctx, const char *format,
 #ifdef CONFIG_PICOLIBC
 int cbvprintf(cbprintf_cb out, void *ctx, const char *format, va_list ap);
 #else
-static inline
-int cbvprintf(cbprintf_cb out, void *ctx, const char *format, va_list ap)
+static inline int cbvprintf(cbprintf_cb out, void *ctx, const char *format, va_list ap)
 {
 	return z_cbvprintf_impl(out, ctx, format, ap, 0);
 }
@@ -774,12 +754,9 @@ int cbvprintf(cbprintf_cb out, void *ctx, const char *format, va_list ap)
  * @return the number of characters generated, or a negative error value
  * returned from invoking @p out.
  */
-static inline
-int cbvprintf_tagged_args(cbprintf_cb out, void *ctx,
-			  const char *format, va_list ap)
+static inline int cbvprintf_tagged_args(cbprintf_cb out, void *ctx, const char *format, va_list ap)
 {
-	return z_cbvprintf_impl(out, ctx, format, ap,
-				Z_CBVPRINTF_PROCESS_FLAG_TAGGED_ARGS);
+	return z_cbvprintf_impl(out, ctx, format, ap, Z_CBVPRINTF_PROCESS_FLAG_TAGGED_ARGS);
 }
 
 /** @brief Generate the output for a previously captured format
@@ -799,17 +776,14 @@ int cbvprintf_tagged_args(cbprintf_cb out, void *ctx,
  * @return the number of characters printed, or a negative error value
  * returned from invoking @p out.
  */
-static inline
-int cbpprintf(cbprintf_cb out, void *ctx, void *packaged)
+static inline int cbpprintf(cbprintf_cb out, void *ctx, void *packaged)
 {
 #if defined(CONFIG_CBPRINTF_PACKAGE_SUPPORT_TAGGED_ARGUMENTS)
-	union cbprintf_package_hdr *hdr =
-		(union cbprintf_package_hdr *)packaged;
+	union cbprintf_package_hdr *hdr = (union cbprintf_package_hdr *)packaged;
 
-	if ((hdr->desc.pkg_flags & CBPRINTF_PACKAGE_ARGS_ARE_TAGGED)
-	    == CBPRINTF_PACKAGE_ARGS_ARE_TAGGED) {
-		return cbpprintf_external(out, cbvprintf_tagged_args,
-					  ctx, packaged);
+	if ((hdr->desc.pkg_flags & CBPRINTF_PACKAGE_ARGS_ARE_TAGGED) ==
+	    CBPRINTF_PACKAGE_ARGS_ARE_TAGGED) {
+		return cbpprintf_external(out, cbvprintf_tagged_args, ctx, packaged);
 	}
 #endif
 
@@ -820,11 +794,11 @@ int cbpprintf(cbprintf_cb out, void *ctx, void *packaged)
 
 #ifdef CONFIG_PICOLIBC
 
-#define fprintfcb(stream, ...) fprintf(stream, __VA_ARGS__)
-#define vfprintfcb(stream, format, ap) vfprintf(stream, format, ap)
-#define printfcb(format, ...) printf(format, __VA_ARGS__)
-#define vprintfcb(format, ap) vprintf(format, ap)
-#define snprintfcb(str, size, ...) snprintf(str, size, __VA_ARGS__)
+#define fprintfcb(stream, ...)             fprintf(stream, __VA_ARGS__)
+#define vfprintfcb(stream, format, ap)     vfprintf(stream, format, ap)
+#define printfcb(format, ...)              printf(format, __VA_ARGS__)
+#define vprintfcb(format, ap)              vprintf(format, ap)
+#define snprintfcb(str, size, ...)         snprintf(str, size, __VA_ARGS__)
 #define vsnprintfcb(str, size, format, ap) vsnprintf(str, size, format, ap)
 
 #else
@@ -847,8 +821,7 @@ int cbpprintf(cbprintf_cb out, void *ctx, void *packaged)
  *
  * return The number of characters printed.
  */
-__printf_like(2, 3)
-int fprintfcb(FILE * stream, const char *format, ...);
+__printf_like(2, 3) int fprintfcb(FILE *stream, const char *format, ...);
 
 /** @brief vfprintf using Zephyrs cbprintf infrastructure.
  *
@@ -885,8 +858,7 @@ int vfprintfcb(FILE *stream, const char *format, va_list ap);
  *
  * @return The number of characters printed.
  */
-__printf_like(1, 2)
-int printfcb(const char *format, ...);
+__printf_like(1, 2) int printfcb(const char *format, ...);
 
 /** @brief vprintf using Zephyrs cbprintf infrastructure.
  *
@@ -928,8 +900,7 @@ int vprintfcb(const char *format, va_list ap);
  * str, excluding the terminating null byte.  This is greater than the
  * number actually written if @p size is too small.
  */
-__printf_like(3, 4)
-int snprintfcb(char *str, size_t size, const char *format, ...);
+__printf_like(3, 4) int snprintfcb(char *str, size_t size, const char *format, ...);
 
 /** @brief vsnprintf using Zephyrs cbprintf infrastructure.
  *

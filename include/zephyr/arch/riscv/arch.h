@@ -3,6 +3,8 @@
  * Contributors: 2018 Antmicro <www.antmicro.com>
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -31,10 +33,9 @@
 #include <zephyr/arch/riscv/exception.h>
 
 /* stacks, for RISCV architecture stack should be 16byte-aligned */
-#define ARCH_STACK_PTR_ALIGN  16
+#define ARCH_STACK_PTR_ALIGN 16
 
-#define Z_RISCV_STACK_PMP_ALIGN \
-	MAX(CONFIG_PMP_GRANULARITY, ARCH_STACK_PTR_ALIGN)
+#define Z_RISCV_STACK_PMP_ALIGN MAX(CONFIG_PMP_GRANULARITY, ARCH_STACK_PTR_ALIGN)
 
 #ifdef CONFIG_PMP_STACK_GUARD
 /*
@@ -47,15 +48,14 @@
  * displacement before the fault.
  */
 #ifdef CONFIG_PMP_POWER_OF_TWO_ALIGNMENT
-#define Z_RISCV_STACK_GUARD_SIZE \
-	Z_POW2_CEIL(MAX(sizeof(struct arch_esf) + CONFIG_PMP_STACK_GUARD_MIN_SIZE, \
+#define Z_RISCV_STACK_GUARD_SIZE                                                                   \
+	Z_POW2_CEIL(MAX(sizeof(struct arch_esf) + CONFIG_PMP_STACK_GUARD_MIN_SIZE,                 \
 			Z_RISCV_STACK_PMP_ALIGN))
-#define ARCH_KERNEL_STACK_OBJ_ALIGN	Z_RISCV_STACK_GUARD_SIZE
+#define ARCH_KERNEL_STACK_OBJ_ALIGN Z_RISCV_STACK_GUARD_SIZE
 #else
-#define Z_RISCV_STACK_GUARD_SIZE \
-	ROUND_UP(sizeof(struct arch_esf) + CONFIG_PMP_STACK_GUARD_MIN_SIZE, \
-		 Z_RISCV_STACK_PMP_ALIGN)
-#define ARCH_KERNEL_STACK_OBJ_ALIGN	Z_RISCV_STACK_PMP_ALIGN
+#define Z_RISCV_STACK_GUARD_SIZE                                                                   \
+	ROUND_UP(sizeof(struct arch_esf) + CONFIG_PMP_STACK_GUARD_MIN_SIZE, Z_RISCV_STACK_PMP_ALIGN)
+#define ARCH_KERNEL_STACK_OBJ_ALIGN Z_RISCV_STACK_PMP_ALIGN
 #endif
 
 /* Kernel-only stacks have the following layout if a stack guard is enabled:
@@ -70,7 +70,7 @@
  * | TLS        | } thread.stack_info.delta
  * +------------+ <- thread.stack_info.start + thread.stack_info.size
  */
-#define ARCH_KERNEL_STACK_RESERVED	Z_RISCV_STACK_GUARD_SIZE
+#define ARCH_KERNEL_STACK_RESERVED Z_RISCV_STACK_GUARD_SIZE
 
 #else /* !CONFIG_PMP_STACK_GUARD */
 #define Z_RISCV_STACK_GUARD_SIZE 0
@@ -114,11 +114,9 @@
  * +------------+ <- thread.stack_info.start + thread.stack_info.size
  */
 #define ARCH_THREAD_STACK_RESERVED Z_RISCV_STACK_GUARD_SIZE
-#define ARCH_THREAD_STACK_SIZE_ADJUST(size) \
-	Z_POW2_CEIL(MAX(MAX(size, CONFIG_PRIVILEGED_STACK_SIZE), \
-			Z_RISCV_STACK_PMP_ALIGN))
-#define ARCH_THREAD_STACK_OBJ_ALIGN(size) \
-		ARCH_THREAD_STACK_SIZE_ADJUST(size)
+#define ARCH_THREAD_STACK_SIZE_ADJUST(size)                                                        \
+	Z_POW2_CEIL(MAX(MAX(size, CONFIG_PRIVILEGED_STACK_SIZE), Z_RISCV_STACK_PMP_ALIGN))
+#define ARCH_THREAD_STACK_OBJ_ALIGN(size) ARCH_THREAD_STACK_SIZE_ADJUST(size)
 
 #else /* !CONFIG_PMP_POWER_OF_TWO_ALIGNMENT */
 
@@ -137,19 +135,17 @@
  * | TLS        | } thread.stack_info.delta
  * +------------+ <- thread.stack_info.start + thread.stack_info.size
  */
-#define ARCH_THREAD_STACK_RESERVED \
-	ROUND_UP(Z_RISCV_STACK_GUARD_SIZE + CONFIG_PRIVILEGED_STACK_SIZE, \
-		 Z_RISCV_STACK_PMP_ALIGN)
-#define ARCH_THREAD_STACK_SIZE_ADJUST(size) \
-	ROUND_UP(size, Z_RISCV_STACK_PMP_ALIGN)
-#define ARCH_THREAD_STACK_OBJ_ALIGN(size)	Z_RISCV_STACK_PMP_ALIGN
+#define ARCH_THREAD_STACK_RESERVED                                                                 \
+	ROUND_UP(Z_RISCV_STACK_GUARD_SIZE + CONFIG_PRIVILEGED_STACK_SIZE, Z_RISCV_STACK_PMP_ALIGN)
+#define ARCH_THREAD_STACK_SIZE_ADJUST(size) ROUND_UP(size, Z_RISCV_STACK_PMP_ALIGN)
+#define ARCH_THREAD_STACK_OBJ_ALIGN(size)   Z_RISCV_STACK_PMP_ALIGN
 #endif /* CONFIG_PMP_POWER_OF_TWO_ALIGNMENT */
 
 #ifdef CONFIG_64BIT
-#define RV_REGSIZE 8
+#define RV_REGSIZE  8
 #define RV_REGSHIFT 3
 #else
-#define RV_REGSIZE 4
+#define RV_REGSIZE  4
 #define RV_REGSHIFT 2
 #endif
 
@@ -197,24 +193,16 @@ extern "C" {
  */
 
 /* Read-Write access permission attributes */
-#define K_MEM_PARTITION_P_RW_U_RW ((k_mem_partition_attr_t) \
-	{PMP_R | PMP_W})
-#define K_MEM_PARTITION_P_RW_U_RO ((k_mem_partition_attr_t) \
-	{PMP_R})
-#define K_MEM_PARTITION_P_RW_U_NA ((k_mem_partition_attr_t) \
-	{0})
-#define K_MEM_PARTITION_P_RO_U_RO ((k_mem_partition_attr_t) \
-	{PMP_R})
-#define K_MEM_PARTITION_P_RO_U_NA ((k_mem_partition_attr_t) \
-	{0})
-#define K_MEM_PARTITION_P_NA_U_NA ((k_mem_partition_attr_t) \
-	{0})
+#define K_MEM_PARTITION_P_RW_U_RW ((k_mem_partition_attr_t){PMP_R | PMP_W})
+#define K_MEM_PARTITION_P_RW_U_RO ((k_mem_partition_attr_t){PMP_R})
+#define K_MEM_PARTITION_P_RW_U_NA ((k_mem_partition_attr_t){0})
+#define K_MEM_PARTITION_P_RO_U_RO ((k_mem_partition_attr_t){PMP_R})
+#define K_MEM_PARTITION_P_RO_U_NA ((k_mem_partition_attr_t){0})
+#define K_MEM_PARTITION_P_NA_U_NA ((k_mem_partition_attr_t){0})
 
 /* Execution-allowed attributes */
-#define K_MEM_PARTITION_P_RWX_U_RWX ((k_mem_partition_attr_t) \
-	{PMP_R | PMP_W | PMP_X})
-#define K_MEM_PARTITION_P_RX_U_RX ((k_mem_partition_attr_t) \
-	{PMP_R | PMP_X})
+#define K_MEM_PARTITION_P_RWX_U_RWX ((k_mem_partition_attr_t){PMP_R | PMP_W | PMP_X})
+#define K_MEM_PARTITION_P_RX_U_RX   ((k_mem_partition_attr_t){PMP_R | PMP_X})
 
 /* Typedef for the k_mem_partition attribute */
 typedef struct {
@@ -228,6 +216,27 @@ struct arch_mem_domain {
 extern void z_irq_spurious(const void *unused);
 
 /*
+ * CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine
+ * the capability for the function in the ISR table, but can also be used for non-capabilities
+ * When using symbols in the ISR table (instead of fixed addresses) include the non-static ISR
+ * extern function declaration here. Symbols are necessary for CHERI.
+ */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is only available for RISCV");
+#ifdef CONFIG_RISCV
+extern void timer_isr(const void *arg);
+extern void plic_irq_handler(const struct device *dev);
+#endif /*CONFIG_RISCV*/
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
+
+/*
  * use atomic instruction csrrc to lock global irq
  * csrrc: atomic read and clear bits in CSR register
  */
@@ -238,10 +247,7 @@ static ALWAYS_INLINE unsigned int arch_irq_lock(void)
 #else
 	unsigned int key;
 
-	__asm__ volatile ("csrrc %0, mstatus, %1"
-			  : "=r" (key)
-			  : "rK" (MSTATUS_IEN)
-			  : "memory");
+	__asm__ volatile("csrrc %0, mstatus, %1" : "=r"(key) : "rK"(MSTATUS_IEN) : "memory");
 
 	return key;
 #endif
@@ -256,10 +262,7 @@ static ALWAYS_INLINE void arch_irq_unlock(unsigned int key)
 #ifdef CONFIG_RISCV_SOC_HAS_CUSTOM_IRQ_LOCK_OPS
 	z_soc_irq_unlock(key);
 #else
-	__asm__ volatile ("csrs mstatus, %0"
-			  :
-			  : "r" (key & MSTATUS_IEN)
-			  : "memory");
+	__asm__ volatile("csrs mstatus, %0" : : "r"(key & MSTATUS_IEN) : "memory");
 #endif
 }
 
@@ -302,6 +305,5 @@ static inline uint64_t arch_k_cycle_get_64(void)
 #if defined(CONFIG_RISCV_PRIVILEGED)
 #include <zephyr/arch/riscv/riscv-privileged/asm_inline.h>
 #endif
-
 
 #endif

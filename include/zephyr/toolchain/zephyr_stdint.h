@@ -2,6 +2,8 @@
  * Copyright (c) 2019 BayLibre SAS
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 #ifndef ZEPHYR_INCLUDE_TOOLCHAIN_STDINT_H_
@@ -60,17 +62,17 @@
 #undef __INT_LEAST64_TYPE__
 #undef __UINT_LEAST64_TYPE__
 
-#define __INT32_TYPE__ int
-#define __UINT32_TYPE__ unsigned int
-#define __INT_FAST32_TYPE__ __INT32_TYPE__
-#define __UINT_FAST32_TYPE__ __UINT32_TYPE__
-#define __INT_LEAST32_TYPE__ __INT32_TYPE__
+#define __INT32_TYPE__        int
+#define __UINT32_TYPE__       unsigned int
+#define __INT_FAST32_TYPE__   __INT32_TYPE__
+#define __UINT_FAST32_TYPE__  __UINT32_TYPE__
+#define __INT_LEAST32_TYPE__  __INT32_TYPE__
 #define __UINT_LEAST32_TYPE__ __UINT32_TYPE__
-#define __INT64_TYPE__ long long int
-#define __UINT64_TYPE__ unsigned long long int
-#define __INT_FAST64_TYPE__ __INT64_TYPE__
-#define __UINT_FAST64_TYPE__ __UINT64_TYPE__
-#define __INT_LEAST64_TYPE__ __INT64_TYPE__
+#define __INT64_TYPE__        long long
+#define __UINT64_TYPE__       unsigned long long
+#define __INT_FAST64_TYPE__   __INT64_TYPE__
+#define __UINT_FAST64_TYPE__  __UINT64_TYPE__
+#define __INT_LEAST64_TYPE__  __INT64_TYPE__
 #define __UINT_LEAST64_TYPE__ __UINT64_TYPE__
 
 /*
@@ -79,16 +81,25 @@
  * it to a long int to get some uniformity. Doing so also makes it compatible
  * with LP64 (64-bit) targets where a long is always 64-bit wide.
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/*
+ * For CHERI size of pointer is twice the size. For 32 bit targets it
+ * will be 64 bits. For 64 bit targets it will be 128 bits.
+ */
+#if __SIZEOF_POINTER__ != 2 * __SIZEOF_LONG__
+#error "CHERI pointers are not twice as big as long ints"
+#endif
 
+#else
 #if __SIZEOF_POINTER__ != __SIZEOF_LONG__
 #error "unexpected size difference between pointers and long ints"
 #endif
 
 #undef __INTPTR_TYPE__
 #undef __UINTPTR_TYPE__
-#define __INTPTR_TYPE__ long int
+#define __INTPTR_TYPE__  long
 #define __UINTPTR_TYPE__ long unsigned int
-
+#endif
 /*
  * Re-define the INTN_C(value) integer constant expression macros to match the
  * integer types re-defined above.
@@ -98,9 +109,9 @@
 #undef __UINT32_C
 #undef __INT64_C
 #undef __UINT64_C
-#define __INT32_C(c) c
-#define __UINT32_C(c) c ## U
-#define __INT64_C(c) c ## LL
-#define __UINT64_C(c) c ## ULL
+#define __INT32_C(c)  c
+#define __UINT32_C(c) c##U
+#define __INT64_C(c)  c##LL
+#define __UINT64_C(c) c##ULL
 
 #endif /* ZEPHYR_INCLUDE_TOOLCHAIN_STDINT_H_ */

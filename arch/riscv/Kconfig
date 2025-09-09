@@ -465,4 +465,17 @@ config ARCH_HAS_STACKWALK
 
 rsource "Kconfig.isa"
 
+#depends on TOOLCHAIN LLVM-CHERI
+config CHERI
+	bool "For building with CHERI"
+	default n
+	help
+	  Build with capabilities
+
+config ISR_TABLE_USE_SYMBOLS
+	bool "For using symbols instead of fixed addresses"
+	depends on CHERI
+	default n
+	help
+	  use with capabilities
 endmenu

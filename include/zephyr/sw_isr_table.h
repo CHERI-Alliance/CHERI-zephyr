@@ -2,6 +2,8 @@
  * Copyright (c) 2014, Wind River Systems, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -24,6 +26,30 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*
+ * CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine
+ * the capability for the function in the ISR table, but can also be used for non-capabilities.
+ * When using symbols in the ISR table (instead of fixed addresses) include the non-static function
+ * declaration here. Symbols are necessary for CHERI
+ */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is only available for RISCV");
+#ifdef CONFIG_RISCV
+void timer_isr(const void *arg);
+void plic_irq_handler(const struct device *dev);
+#ifdef CONFIG_SMP
+void sched_ipi_handler(const void *unused);
+#endif /*CONFIG_SMP*/
+#endif /*CONFIG_RISCV*/
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 
 /* Default vector for the IRQ vector table */
 void _isr_wrapper(void);
@@ -58,8 +84,8 @@ struct _irq_parent_entry {
  */
 
 /* Mapping between aggregator level to order */
-#define Z_STR_L2 2ND
-#define Z_STR_L3 3RD
+#define Z_STR_L2                        2ND
+#define Z_STR_L3                        3RD
 /**
  * @brief Get the Software ISR table offset Kconfig for the given aggregator level
  *
@@ -141,11 +167,33 @@ struct _isr_list {
 	int32_t irq;
 	/** Flags for this IRQ, see ISR_FLAG_* definitions */
 	int32_t flags;
-	/** ISR to call */
+/** ISR to call */
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* we need this to be an unsigned long for CHERI, not a capability pointer
+	 * so the python script (gen_isr_tables.py) can determine the symbol name from the integer
+	 * address This could work with or without padding with suitable corresponding adjustments
+	 * to the gen_isr_tables.py scripts. We keep the padding in for now and align the structure
+	 * because strictly with capabilities the memory size should be twice the length. ToDo: It
+	 * is more efficient to remove this padding and alignment and keep the format the same as
+	 * non-CHERI so less modifications are required to the build script. This can be done
+	 * because this _isr_list structure is only used to generate the code for the isr/IRQ tables
+	 * during the build process, and where the requirement will always be to use symbols instead
+	 * of fixed addresses for CHERI.
+	 */
+	unsigned long padding;
+	unsigned long func;
+	unsigned long padding2;
+	unsigned long param;
+#else
 	void *func;
 	/** Parameter for non-direct IRQs */
 	const void *param;
+#endif
+#ifdef __CHERI_PURE_CAPABILITY__
+} __aligned(16);
+#else
 };
+#endif
 
 /*
  * Data structure created in a special binary .intlist section for each
@@ -179,20 +227,19 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
 /** This interrupt gets put directly in the vector table */
 #define ISR_FLAG_DIRECT BIT(0)
 
-#define _MK_ISR_NAME(x, y) __MK_ISR_NAME(x, y)
-#define __MK_ISR_NAME(x, y) __isr_ ## x ## _irq_ ## y
-
+#define _MK_ISR_NAME(x, y)  __MK_ISR_NAME(x, y)
+#define __MK_ISR_NAME(x, y) __isr_##x##_irq_##y
 
 #if defined(CONFIG_ISR_TABLES_LOCAL_DECLARATION)
 
-#define _MK_ISR_ELEMENT_NAME(func, id) __MK_ISR_ELEMENT_NAME(func, id)
-#define __MK_ISR_ELEMENT_NAME(func, id) __isr_table_entry_ ## func ## _irq_ ## id
+#define _MK_ISR_ELEMENT_NAME(func, id)  __MK_ISR_ELEMENT_NAME(func, id)
+#define __MK_ISR_ELEMENT_NAME(func, id) __isr_table_entry_##func##_irq_##id
 
-#define _MK_IRQ_ELEMENT_NAME(func, id) __MK_ISR_ELEMENT_NAME(func, id)
-#define __MK_IRQ_ELEMENT_NAME(func, id) __irq_table_entry_ ## func ## _irq_ ## id
+#define _MK_IRQ_ELEMENT_NAME(func, id)  __MK_ISR_ELEMENT_NAME(func, id)
+#define __MK_IRQ_ELEMENT_NAME(func, id) __irq_table_entry_##func##_irq_##id
 
-#define _MK_ISR_SECTION_NAME(prefix, file, counter) \
-	"." Z_STRINGIFY(prefix)"."file"." Z_STRINGIFY(counter)
+#define _MK_ISR_SECTION_NAME(prefix, file, counter)                                                \
+	"." Z_STRINGIFY(prefix)"." file "." Z_STRINGIFY(counter)
 
 #define _MK_ISR_ELEMENT_SECTION(counter) _MK_ISR_SECTION_NAME(irq, __FILE__, counter)
 #define _MK_IRQ_ELEMENT_SECTION(counter) _MK_ISR_SECTION_NAME(isr, __FILE__, counter)
@@ -200,32 +247,27 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
 /* Separated macro to create ISR table entry only.
  * Used by Z_ISR_DECLARE and ISR tables generation script.
  */
-#define _Z_ISR_TABLE_ENTRY(irq, func, param, sect) \
-	static Z_DECL_ALIGN(struct _isr_table_entry)                                      \
-		__attribute__((section(sect)))                                            \
-		__used _MK_ISR_ELEMENT_NAME(func, __COUNTER__) = {                        \
-			.arg = (const void *)(param),                                     \
-			.isr = (void (*)(const void *))(void *)(func)                     \
-	}
+#define _Z_ISR_TABLE_ENTRY(irq, func, param, sect)                                                 \
+	static Z_DECL_ALIGN(struct _isr_table_entry) __attribute__((section(sect))) __used         \
+	_MK_ISR_ELEMENT_NAME(func, __COUNTER__) = {.arg = (const void *)(param),                   \
+						   .isr = (void (*)(const void *))(void *)(func)}
 
-#define Z_ISR_DECLARE_C(irq, flags, func, param, counter) \
+#define Z_ISR_DECLARE_C(irq, flags, func, param, counter)                                          \
 	_Z_ISR_DECLARE_C(irq, flags, func, param, counter)
 
-#define _Z_ISR_DECLARE_C(irq, flags, func, param, counter)                                \
-	_Z_ISR_TABLE_ENTRY(irq, func, param, _MK_ISR_ELEMENT_SECTION(counter));           \
-	static Z_DECL_ALIGN(struct _isr_list_sname) Z_GENERIC_SECTION(.intList)           \
-		__used _MK_ISR_NAME(func, counter) =                                      \
-		{irq, flags, _MK_ISR_ELEMENT_SECTION(counter)}
+#define _Z_ISR_DECLARE_C(irq, flags, func, param, counter)                                         \
+	_Z_ISR_TABLE_ENTRY(irq, func, param, _MK_ISR_ELEMENT_SECTION(counter));                    \
+	static Z_DECL_ALIGN(struct _isr_list_sname) Z_GENERIC_SECTION(.intList) __used             \
+	_MK_ISR_NAME(func, counter) = {irq, flags, _MK_ISR_ELEMENT_SECTION(counter)}
 
 /* Create an entry for _isr_table to be then placed by the linker.
  * An instance of struct _isr_list which gets put in the .intList
  * section is created with the name of the section where _isr_table entry is placed to be then
  * used by isr generation script to create linker script chunk.
  */
-#define Z_ISR_DECLARE(irq, flags, func, param)                                            \
-	BUILD_ASSERT(((flags) & ISR_FLAG_DIRECT) == 0, "Use Z_ISR_DECLARE_DIRECT macro"); \
+#define Z_ISR_DECLARE(irq, flags, func, param)                                                     \
+	BUILD_ASSERT(((flags) & ISR_FLAG_DIRECT) == 0, "Use Z_ISR_DECLARE_DIRECT macro");          \
 	Z_ISR_DECLARE_C(irq, flags, func, param, __COUNTER__)
-
 
 /* Separated macro to create ISR Direct table entry only.
  * Used by Z_ISR_DECLARE_DIRECT and ISR tables generation script.
@@ -237,21 +279,19 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
 			__used _MK_IRQ_ELEMENT_NAME(func, __COUNTER__) = ((uintptr_t)(func));      \
 		), (                                                                               \
 			static void __attribute__((section(sect))) __attribute__((naked))          \
-			__used _MK_IRQ_ELEMENT_NAME(func, __COUNTER__)(void) {                     \
-				__asm(ARCH_IRQ_VECTOR_JUMP_CODE(func));                            \
+			__used _MK_IRQ_ELEMENT_NAME(func, __COUNTER__)(void)                       \
+			{ __asm(ARCH_IRQ_VECTOR_JUMP_CODE(func));                                  \
 			}                                                                          \
 		))
 
-#define Z_ISR_DECLARE_DIRECT_C(irq, flags, func, counter) \
+#define Z_ISR_DECLARE_DIRECT_C(irq, flags, func, counter)                                          \
 	_Z_ISR_DECLARE_DIRECT_C(irq, flags, func, counter)
 
 #define _Z_ISR_DECLARE_DIRECT_C(irq, flags, func, counter)                                         \
 	_Z_ISR_DIRECT_TABLE_ENTRY(irq, func, _MK_IRQ_ELEMENT_SECTION(counter));                    \
-	static Z_DECL_ALIGN(struct _isr_list_sname) Z_GENERIC_SECTION(.intList)                    \
-		__used _MK_ISR_NAME(func, counter) = {                                             \
-			irq,                                                                       \
-			ISR_FLAG_DIRECT | (flags),                                                 \
-			_MK_IRQ_ELEMENT_SECTION(counter)}
+	static Z_DECL_ALIGN(struct _isr_list_sname) Z_GENERIC_SECTION(.intList) __used             \
+	_MK_ISR_NAME(func, counter) = {irq, ISR_FLAG_DIRECT | (flags),                             \
+				       _MK_IRQ_ELEMENT_SECTION(counter)}
 
 /* Create an entry to irq table and place it in specific section which name is then placed
  * in an instance of struct _isr_list to be then used by the isr generation script to create
@@ -259,10 +299,9 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
  */
 #define Z_ISR_DECLARE_DIRECT(irq, flags, func)                                                     \
 	BUILD_ASSERT(IS_ENABLED(CONFIG_IRQ_VECTOR_TABLE_JUMP_BY_ADDRESS) ||                        \
-		IS_ENABLED(CONFIG_IRQ_VECTOR_TABLE_JUMP_BY_CODE),                                  \
-		"CONFIG_IRQ_VECTOR_TABLE_JUMP_BY_{ADDRESS,CODE} not set");                         \
+			     IS_ENABLED(CONFIG_IRQ_VECTOR_TABLE_JUMP_BY_CODE),                     \
+		     "CONFIG_IRQ_VECTOR_TABLE_JUMP_BY_{ADDRESS,CODE} not set");                    \
 	Z_ISR_DECLARE_DIRECT_C(irq, flags, func, __COUNTER__)
-
 
 #else /* defined(CONFIG_ISR_TABLES_LOCAL_DECLARATION) */
 
@@ -270,15 +309,32 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
  * section. This gets consumed by gen_isr_tables.py which creates the vector
  * and/or SW ISR tables.
  */
-#define Z_ISR_DECLARE(irq, flags, func, param) \
-	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) \
-		__used _MK_ISR_NAME(func, __COUNTER__) = \
-			{irq, flags, (void *)&func, (const void *)param}
+#ifdef __CHERI_PURE_CAPABILITY__
+/*
+ * For CHERI we want to maintain an integer address rather than turning it into a
+ * capability (as you can't write capabilities directly to an elf file)
+ * so that the gen_isr_tables.py can look up the fixed address and turn it
+ * into a symbol from the symbol table
+ */
+#define Z_ISR_DECLARE(irq, flags, func, param)                                                     \
+	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) __used _MK_ISR_NAME(     \
+		func, __COUNTER__) = {irq,                                                         \
+				      flags,                                                       \
+				      (unsigned long)NULL,                                         \
+				      (unsigned long)&func,                                        \
+				      (unsigned long)NULL,                                         \
+				      (unsigned long)param}
+
+#else
+#define Z_ISR_DECLARE(irq, flags, func, param)                                                     \
+	static Z_DECL_ALIGN(struct _isr_list) Z_GENERIC_SECTION(.intList) __used _MK_ISR_NAME(     \
+		func, __COUNTER__) = {irq, flags, (void *)&func, (const void *)param}
+#endif
 
 /* The version of the Z_ISR_DECLARE that should be used for direct ISR declaration.
  * It is here for the API match the version with CONFIG_ISR_TABLES_LOCAL_DECLARATION enabled.
  */
-#define Z_ISR_DECLARE_DIRECT(irq, flags, func) \
+#define Z_ISR_DECLARE_DIRECT(irq, flags, func)                                                     \
 	Z_ISR_DECLARE(irq, ISR_FLAG_DIRECT | (flags), func, NULL)
 
 #endif
@@ -286,12 +342,10 @@ extern struct z_shared_isr_table_entry z_shared_sw_isr_table[];
 #define IRQ_TABLE_SIZE (CONFIG_NUM_IRQS - CONFIG_GEN_IRQ_START_VECTOR)
 
 #ifdef CONFIG_DYNAMIC_INTERRUPTS
-void z_isr_install(unsigned int irq, void (*routine)(const void *),
-		   const void *param);
+void z_isr_install(unsigned int irq, void (*routine)(const void *), const void *param);
 
 #ifdef CONFIG_SHARED_INTERRUPTS
-int z_isr_uninstall(unsigned int irq, void (*routine)(const void *),
-		    const void *param);
+int z_isr_uninstall(unsigned int irq, void (*routine)(const void *), const void *param);
 #endif /* CONFIG_SHARED_INTERRUPTS */
 #endif
 

@@ -1,0 +1,9 @@
+# Copyright (c) 2025 University of Birmingham
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config CHERI
+	default n
+
+config ISR_TABLE_USE_SYMBOLS
+	default n
