@@ -1,0 +1,6 @@
+# Copyright (c) 2024 Antmicro <www.antmicro.com>
+# Modified to support CHERI 2025, University of Birmingham
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_QEMU_RISCV64CHERI
+	select SOC_QEMU_VIRT_RISCV64

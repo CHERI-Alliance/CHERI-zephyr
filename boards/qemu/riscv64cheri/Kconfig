@@ -1,0 +1,19 @@
+# Copyright (c) 2024 Antmicro <www.antmicro.com>
+# Modified to support CHERI 2025, University of Birmingham
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_QEMU_RISCV64CHERI
+	bool "QEMU RISCV64CHERI target"
+	select QEMU_TARGET
+
+config BOARD_QEMU_RISCV64CHERI_PURECAP
+	bool "QEMU RISCV64CHERI PURECAP target"
+	select QEMU_TARGET
+
+config BOARD_QEMU_RISCV64CHERI_SMP
+	bool "QEMU RISCV64CHERI SMP target"
+	select QEMU_TARGET
+
+config BOARD_QEMU_RISCV64CHERI_SMP_PURECAP
+	bool "QEMU RISCV64CHERI SMP PURECAP target"
+	select QEMU_TARGET

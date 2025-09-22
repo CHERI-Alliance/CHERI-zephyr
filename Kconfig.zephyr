@@ -3,6 +3,7 @@
 # Copyright (c) 2014-2015 Wind River Systems, Inc.
 # Copyright (c) 2016 Intel Corporation
 # Copyright (c) 2023 Nordic Semiconductor ASA
+# Modified to support CHERI 2025, University of Birmingham
 # SPDX-License-Identifier: Apache-2.0
 
 source "Kconfig.constants"
@@ -328,6 +329,7 @@ endmenu # "Linker Sections"
 
 config LINKER_ITERABLE_SUBALIGN
 	int
+	default 16 if 64BIT && CHERI
 	default 8 if 64BIT
 	default 4
 	help

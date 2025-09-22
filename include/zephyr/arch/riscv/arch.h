@@ -233,6 +233,9 @@ BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV,
 #ifdef CONFIG_RISCV
 extern void timer_isr(const void *arg);
 extern void plic_irq_handler(const struct device *dev);
+#ifdef CONFIG_SMP
+extern void sched_ipi_handler(const void *unused);
+#endif /*CONFIG_SMP*/
 #endif /*CONFIG_RISCV*/
 #endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 

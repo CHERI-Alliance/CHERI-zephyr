@@ -30,39 +30,42 @@
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
 
-/* For CHERI we need to set the base address as a capability with the correct bounds and permissions
+/*
+ * For CHERI we need to set the base address as a capability
+ *  with the correct bounds and permissions
  */
 #ifdef __CHERI_PURE_CAPABILITY__
-#define PLIC_MMAP_LENGTH                                                                           \
-	0x4000000 /* length of plic memory map according to RISCV PLIC specs. See below */
+/* length of plic memory map according to RISCV PLIC specs. See below */
+#define PLIC_MMAP_LENGTH 0x4000000
 extern void *mmdev_root_cap; /* root capability of the device memory map */
 /*
  * Define base address as a capability, and set bounds.
  * Permissions are set on the device memory mmdev_root_cap.
  */
-/* For non-CHERI, the structure holding memory mapped addresses is defined as a static constant
- * where the base address is initialised into the structure statically with a fixed address.
- * In the CHERI version if we want to assign the capability addresses dynamically at run-time
- * by reducing the bounds of the device memory map space we need to create the structure as being
- * non-constant, so it can be updated with the correct capabilities at run-time during
- * initialisation.
+/* For non-CHERI, the structure holding memory mapped addresses is defined as a static
+ * constant where the base address is initialised into the structure statically with a
+ * fixed address.
+ * In the CHERI version if we want to assign the capability addresses dynamically at
+ * run-time by reducing the bounds of the device memory map space we need to create the
+ * structure as being non-constant, so it can be updated with the correct capabilities
+ * at run-time during initialisation.
  * 1. We firstly put placeholders in at compile time for the addresses to keep the format/setup as
  * close to the non-CHERI version as possible.
- * 2. We then create a CHERI patch function that over-rides the capability-address fields at run
- * time.
- * 3. The patch function is called by plic_init at run time driver initialisation before any other
- * set up is done. Note: mem_addr_t is actually uintptr_t, so we don't need to modify those ->
- * typedef uintptr_t mem_addr_t;  (zephyr/sys/sys_io.h:21) kept as uintptr_t for CHERI specific code
- * to keep consistent with rest of CHERI code.
+ * 2. We then create a CHERI patch function that over-rides the capability-address fields
+ *    at run time.
+ * 3. The patch function is called by plic_init at run time driver initialisation
+ *    before any other set up is done.
+ * Note: mem_addr_t is actually uintptr_t, so we don't need to modify those ->
+ *       typedef uintptr_t mem_addr_t;  (zephyr/sys/sys_io.h:21)
+ * kept as uintptr_t for CHERI specific code to keep consistent with rest of CHERI code.
  */
 /* DT_INST_REG_ADDR(n) evaluated at compile-time, PLIC_BASE_ADDR(n) evaluated at run-time*/
-
 #define PLIC_BASE_ADDR_SET(n) __builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR(n))
 #define PLIC_BASE_ADDR(n)                                                                          \
 	(uintptr_t)__builtin_cheri_bounds_set(PLIC_BASE_ADDR_SET(n), PLIC_MMAP_LENGTH)
 #else
 #define PLIC_BASE_ADDR(n) DT_INST_REG_ADDR(n)
-#endif /*__CHERI_PURE_CAPABILITY__ */
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /*
  * These registers' offset are defined in the RISCV PLIC specs, see:
@@ -528,12 +531,11 @@ static ALWAYS_INLINE uint16_t *get_irq_hit_count_total(const struct device *dev,
 #endif /* CONFIG_PLIC_SHELL_IRQ_COUNT */
 
 /*
- * CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine
- * the capability for the function in the ISR table, but can also be used for non-capabilities
- */
-/*
- * When using symbols in the ISR table (instead of fixed addresses) include the non-static ISR
- * function head here. Symbols are necessary for CHERI
+ * CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler
+ * can determine the capability for the function in the ISR table, but can also be used
+ * for non-capabilities.
+ * When using symbols in the ISR table (instead of fixed addresses) include the non-static
+ * ISR function head here. Symbols are necessary for CHERI
  */
 #ifdef CONFIG_CHERI
 /* only check if configured for CHERI */
@@ -630,8 +632,7 @@ static void plic_irq_handler(const struct device *dev)
 #endif /* #ifdef CONFIG_PLIC_SUPPORTS_TRIG_EDGE */
 }
 
-/*
- * CHERI run-time patch function to add capability addresses to the device structure.
+/* CHERI run-time patch function to add capability addresses to the device structure.
  * It is used by the macro PLIC_PATCH_IF_MATCH which is in turn called by plic_init
  * during initialisation.
  */
@@ -648,9 +649,11 @@ static void plic_config_runtime_patch(struct plic_config *cfg, uintptr_t base)
 }
 
 /*
- * For ChERI we define a macro to patch all instances at run-time with the capability addresses
+ * For CHERI we define a macro to patch all instances at run-time with the capability
+ * addresses.
  * This is used within the plic_init initialisation function based on plic_config_runtime_patch
- * function config is defined in the function so is used directly
+ * function.
+ * config is defined in the function so is used directly.
  */
 #define PLIC_PATCH_IF_MATCH(n)                                                                     \
 	if (dev == DEVICE_DT_INST_GET(n)) {                                                        \
@@ -670,13 +673,12 @@ static int plic_init(const struct device *dev)
 #ifdef __CHERI_PURE_CAPABILITY__
 	/*
 	 * Run-time assign capability addresses to the device configuration structure.
-	 * For CHERI the structure needs to be defined here as not a constant since
-	 * we are modifying the contents.
+	 * For CHERI the structure needs to be defined here as not a constant since we
+	 * are modifying the contents
 	 */
 	struct plic_config *config_mod = (struct plic_config *)dev->config;
 
-	/*
-	 * Dynamically update each instance of the structure with CHERI capabilities.
+	/* dynamically update each instance of the structure with CHERI capabilities.
 	 * put a check in just incase the function is called more than once to be safe.
 	 */
 	if (config_mod->prio == (uintptr_t)NULL) {
@@ -956,13 +958,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(plic_cmds,
 SHELL_CMD_REGISTER(plic, &plic_cmds, "PLIC shell commands", NULL);
 #endif /* CONFIG_PLIC_SHELL */
 
+/* clang-format off */
 #define PLIC_MIN_IRQ_NUM(n) MIN(DT_INST_PROP(n, riscv_ndev), CONFIG_MAX_IRQ_PER_AGGREGATOR)
 
 #ifdef CONFIG_PLIC_SHELL_IRQ_COUNT
 #define PLIC_INTC_IRQ_COUNT_BUF_DEFINE(n)                                                          \
 	static uint16_t local_irq_count_##n[COND_CODE_1(CONFIG_MP_MAX_NUM_CPUS, (1),               \
-							(UTIL_INC(CONFIG_MP_MAX_NUM_CPUS)))]   \
-								[PLIC_MIN_IRQ_NUM(n)];
+							(UTIL_INC(CONFIG_MP_MAX_NUM_CPUS)))]       \
+					   [PLIC_MIN_IRQ_NUM(n)];
 #define PLIC_INTC_IRQ_COUNT_INIT(n)                                                                \
 	.stats = {                                                                                 \
 		.irq_count = &local_irq_count_##n[0][0],                                           \
@@ -987,8 +990,10 @@ SHELL_CMD_REGISTER(plic, &plic_cmds, "PLIC shell commands", NULL);
 #define PLIC_INTC_DATA_INIT(n)                                                                     \
 	PLIC_INTC_IRQ_COUNT_BUF_DEFINE(n);                                                         \
 	PLIC_IRQ_CPUMASK_BUF_DECLARE(n);                                                           \
-	static struct plic_data plic_data_##n = {PLIC_INTC_IRQ_COUNT_INIT(n)                       \
-							 PLIC_IRQ_CPUMASK_BUF_INIT(n)};
+	static struct plic_data plic_data_##n = {                                                  \
+		PLIC_INTC_IRQ_COUNT_INIT(n)                                                        \
+		PLIC_IRQ_CPUMASK_BUF_INIT(n)                                                       \
+	};
 
 #define PLIC_INTC_IRQ_FUNC_DECLARE(n) static void plic_irq_config_func_##n(void)
 
@@ -1009,63 +1014,60 @@ SHELL_CMD_REGISTER(plic, &plic_cmds, "PLIC shell commands", NULL);
  * and we put place holders in for the capability addresses which
  * are set up as the correct size in the structure definition
  */
-#define PLIC_INTC_CONFIG_INIT(n)                                                                   \
-	PLIC_INTC_IRQ_FUNC_DECLARE(n);                                                             \
-	PLIC_HART_CONTEXT_DECLARE(n);                                                              \
-	static struct plic_config plic_config_##n = {                                              \
-		.prio = (uintptr_t)NULL,                                                           \
-		.irq_en = (uintptr_t)NULL,                                                         \
-		.reg = (uintptr_t)NULL,                                                            \
-		IF_ENABLED(CONFIG_PLIC_SUPPORTS_SOFT_INTERRUPT,				\
-			   (.pend = (uintptr_t)NULL,))                               \
-				    IF_ENABLED(CONFIG_PLIC_SUPPORTS_TRIG_TYPE,		\
-			   (.trig = (uintptr_t)NULL,)) .max_prio =                  \
-						     DT_INST_PROP(n, riscv_max_priority),          \
-					     .riscv_ndev = DT_INST_PROP(n, riscv_ndev),            \
-					     .nr_irqs = PLIC_MIN_IRQ_NUM(n),                       \
-					     .irq = DT_INST_IRQN(n),                               \
-					     .irq_config_func = plic_irq_config_func_##n,          \
-					     .isr_table =                                          \
-						     &_sw_isr_table[INTC_INST_ISR_TBL_OFFSET(n)],  \
-					     .hart_context = plic_hart_contexts_##n,               \
-	};                                                                                         \
+ #define PLIC_INTC_CONFIG_INIT(n)								\
+	PLIC_INTC_IRQ_FUNC_DECLARE(n);								\
+	PLIC_HART_CONTEXT_DECLARE(n);								\
+	static struct plic_config plic_config_##n = {						\
+		.prio = (uintptr_t)NULL,							\
+		.irq_en = (uintptr_t)NULL,							\
+		.reg = (uintptr_t)NULL,								\
+		IF_ENABLED(CONFIG_PLIC_SUPPORTS_SOFT_INTERRUPT,					\
+			   (.pend = (uintptr_t)NULL,))						\
+		IF_ENABLED(CONFIG_PLIC_SUPPORTS_TRIG_TYPE,					\
+			   (.trig = (uintptr_t)NULL,))						\
+		.max_prio = DT_INST_PROP(n, riscv_max_priority),				\
+		.riscv_ndev = DT_INST_PROP(n, riscv_ndev),					\
+		.nr_irqs = PLIC_MIN_IRQ_NUM(n),							\
+		.irq = DT_INST_IRQN(n),								\
+		.irq_config_func = plic_irq_config_func_##n,					\
+		.isr_table = &_sw_isr_table[INTC_INST_ISR_TBL_OFFSET(n)],			\
+		.hart_context = plic_hart_contexts_##n,						\
+	};											\
 	PLIC_INTC_IRQ_FUNC_DEFINE(n)
 
 #else
-/*
- * clang-format and checkpatch disagree on formatting here, so rely on checkpatch and disable
- * clang-format since checkpatch cannot be selectively disabled.
- */
-/* clang-format off */
-#define PLIC_INTC_CONFIG_INIT(n)                                                          \
-	PLIC_INTC_IRQ_FUNC_DECLARE(n);                                                    \
-	PLIC_HART_CONTEXT_DECLARE(n);                                                     \
-	static const struct plic_config plic_config_##n = {                               \
-		.prio = PLIC_BASE_ADDR(n),                                                \
-		.irq_en = PLIC_BASE_ADDR(n) + CONTEXT_ENABLE_BASE,                        \
-		.reg = PLIC_BASE_ADDR(n) + CONTEXT_BASE,                                  \
-		IF_ENABLED(CONFIG_PLIC_SUPPORTS_SOFT_INTERRUPT,                           \
-		(.pend = PLIC_BASE_ADDR(n) + CONTEXT_PENDING_BASE,))         \
-				 IF_ENABLED(CONFIG_PLIC_SUPPORTS_TRIG_TYPE,                \
-		(.trig = PLIC_BASE_ADDR(n) + CONFIG_PLIC_TRIG_TYPE_REG_OFFSET,)) .max_prio = \
-						  DT_INST_PROP(n, riscv_max_priority),            \
-					  .riscv_ndev = DT_INST_PROP(n, riscv_ndev),              \
-					  .nr_irqs = PLIC_MIN_IRQ_NUM(n), .irq = DT_INST_IRQN(n), \
-					  .irq_config_func = plic_irq_config_func_##n,            \
-					  .isr_table =                                            \
-						  &_sw_isr_table[INTC_INST_ISR_TBL_OFFSET(n)],    \
-					  .hart_context = plic_hart_contexts_##n,                 \
-	};                                                                                        \
+#define PLIC_INTC_CONFIG_INIT(n)                                                                   \
+	PLIC_INTC_IRQ_FUNC_DECLARE(n);                                                             \
+	PLIC_HART_CONTEXT_DECLARE(n);                                                              \
+	static const struct plic_config plic_config_##n = {                                        \
+		.prio = PLIC_BASE_ADDR(n),                                                         \
+		.irq_en = PLIC_BASE_ADDR(n) + CONTEXT_ENABLE_BASE,                                 \
+		.reg = PLIC_BASE_ADDR(n) + CONTEXT_BASE,                                           \
+		IF_ENABLED(CONFIG_PLIC_SUPPORTS_SOFT_INTERRUPT,                                    \
+			   (.pend = PLIC_BASE_ADDR(n) + CONTEXT_PENDING_BASE,))                    \
+		IF_ENABLED(CONFIG_PLIC_SUPPORTS_TRIG_TYPE,                                         \
+			   (.trig = PLIC_BASE_ADDR(n) + CONFIG_PLIC_TRIG_TYPE_REG_OFFSET,))        \
+		.max_prio = DT_INST_PROP(n, riscv_max_priority),                                   \
+		.riscv_ndev = DT_INST_PROP(n, riscv_ndev),                                         \
+		.nr_irqs = PLIC_MIN_IRQ_NUM(n),                                                    \
+		.irq = DT_INST_IRQN(n),                                                            \
+		.irq_config_func = plic_irq_config_func_##n,                                       \
+		.isr_table = &_sw_isr_table[INTC_INST_ISR_TBL_OFFSET(n)],                          \
+		.hart_context = plic_hart_contexts_##n,                                            \
+	};											   \
 	PLIC_INTC_IRQ_FUNC_DEFINE(n)
 #endif
-/* clang-format on */
-#define PLIC_INTC_DEVICE_INIT(n)                                                                   \
-	IRQ_PARENT_ENTRY_DEFINE(plic##n, DEVICE_DT_INST_GET(n), DT_INST_IRQN(n),                   \
-				INTC_INST_ISR_TBL_OFFSET(n),                                       \
-				DT_INST_INTC_GET_AGGREGATOR_LEVEL(n));                             \
-	PLIC_INTC_CONFIG_INIT(n)                                                                   \
-	PLIC_INTC_DATA_INIT(n)                                                                     \
-	DEVICE_DT_INST_DEFINE(n, &plic_init, NULL, &plic_data_##n, &plic_config_##n, PRE_KERNEL_1, \
-			      CONFIG_INTC_INIT_PRIORITY, NULL);
 
+#define PLIC_INTC_DEVICE_INIT(n)								\
+	IRQ_PARENT_ENTRY_DEFINE(								\
+	plic##n, DEVICE_DT_INST_GET(n), DT_INST_IRQN(n),					\
+	INTC_INST_ISR_TBL_OFFSET(n),								\
+	DT_INST_INTC_GET_AGGREGATOR_LEVEL(n));							\
+	PLIC_INTC_CONFIG_INIT(n)								\
+	PLIC_INTC_DATA_INIT(n)									\
+	DEVICE_DT_INST_DEFINE(n, &plic_init, NULL,						\
+			      &plic_data_##n, &plic_config_##n,					\
+			      PRE_KERNEL_1, CONFIG_INTC_INIT_PRIORITY,				\
+			      NULL);
+/* clang-format on */
 DT_INST_FOREACH_STATUS_OKAY(PLIC_INTC_DEVICE_INIT)

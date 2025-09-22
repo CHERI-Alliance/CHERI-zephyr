@@ -48,7 +48,7 @@ if(NOT "${ARCH}" STREQUAL "posix")
     elseif("${ARCH}" STREQUAL "riscv")
 
 	if(CONFIG_CHERI)
-	        #if compiling for riscv64 CHERI-PURECAP
+		#if compiling for riscv64 CHERI-PURECAP
 		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
 		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gcxcheri -mabi=l64pc128d ")
 		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
