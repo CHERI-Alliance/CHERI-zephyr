@@ -1,9 +1,10 @@
 /*
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, support to CHERI codasip xa730, v0.9.x spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -14,7 +15,7 @@
 #include <zephyr/logging/log.h>
 #ifdef __CHERI_PURE_CAPABILITY__
 #include <stddef.h>
-#define CHERI_MASK 0x1f
+#include <cheri/cheri_riscv_asm_defines.h>
 #endif
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
@@ -83,9 +84,14 @@ const char *z_riscv_mcause_str(unsigned long cause)
 		[15] = "Store/AMO page fault",
 		[16 ... 25] = "unknown",
 #ifdef __CHERI_PURE_CAPABILITY__
-		/* see CHERI spec - riscv */
+	/* see CHERI spec - riscv */
+#ifndef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
 		[26] "Load capability page fault",
 		[27] "Store/AMO capability page fault",
+#else
+		[26] "unknown",
+		[27] "unknown",
+#endif
 		[28] "CHERI exception",
 #endif
 	};
@@ -94,6 +100,38 @@ const char *z_riscv_mcause_str(unsigned long cause)
 }
 
 #ifdef __CHERI_PURE_CAPABILITY__
+#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+/* 0.9.5 spec */
+const char *z_riscv_cap95_type_str(unsigned long mtval2)
+{
+	uint8_t exccode;
+
+	exccode = mtval2 & CHERI_TYPE_MASK;
+
+	static const char *const cap_cause_str[16] = {
+		[0] = "CHERI instruction fetch fault",
+		[1] = "CHERI data fault due to load, store or AMO",
+		[2] = "CHERI jump or branch fault",
+		[3 ... 15] = "CHERI reserved",
+	};
+	return cap_cause_str[MIN(exccode, ARRAY_SIZE(cap_cause_str) - 1)];
+}
+
+const char *z_riscv_cap95_cause_str(unsigned long mtval2)
+{
+	uint8_t exccode;
+
+	exccode = mtval2 & CHERI_CAUSE_MASK;
+
+	static const char *const cap_cause_str[16] = {
+		[0] = "CHERI tag violation",        [1] = "CHERI seal violation",
+		[2] = "CHERI permission violation", [3] = "CHERI invalid address violation",
+		[4] = "CHERI bounds violation",     [5 ... 15] = "CHERI reserved",
+	};
+	return cap_cause_str[MIN(exccode, ARRAY_SIZE(cap_cause_str) - 1)];
+}
+#else
+/* cambs v8 spec */
 const char *z_riscv_cap_cause_str(unsigned long mtval)
 {
 	uint8_t exccode;
@@ -123,7 +161,8 @@ const char *z_riscv_cap_cause_str(unsigned long mtval)
 	};
 	return cap_cause_str[MIN(exccode, ARRAY_SIZE(cap_cause_str) - 1)];
 }
-#endif
+#endif /* CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI */
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason, const struct arch_esf *esf)
 {
@@ -145,9 +184,24 @@ FUNC_NORETURN void z_riscv_fatal_error_csf(unsigned int reason, const struct arc
 	unsigned long mtval;
 
 	__asm__ volatile("csrr %0, mtval" : "=r"(mtval));
+
 #ifdef __CHERI_PURE_CAPABILITY__
+#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+	unsigned long mtval2;
+
+	__asm__ volatile("csrr %0, mtval2" : "=r"(mtval2));
+#endif
+#endif
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+	/* log specific CHERI 0.9.5 spec violation */
+	LOG_ERR(" mtval2type: %ld, %s", mtval2, z_riscv_cap95_type_str(mtval2));
+	LOG_ERR(" mtval2cause: %ld, %s", mtval2, z_riscv_cap95_cause_str(mtval2));
+#else
 	/* log specific CHERI violation */
 	LOG_ERR(" mtval: %ld, %s", mtval, z_riscv_cap_cause_str(mtval));
+#endif
 #else
 	LOG_ERR("  mtval: %lx", mtval);
 #endif
@@ -158,10 +212,9 @@ FUNC_NORETURN void z_riscv_fatal_error_csf(unsigned int reason, const struct arc
 #ifdef __CHERI_PURE_CAPABILITY__
 		/*
 		 * Cast to unsigned long before printing or change PR_REG format.
-		 * To print unsigned long we need to cast from pointer type to unsigned long,
-		 * which are different sizes in CHERI.
+		 * To print unsigned long we need to cast from pointer type to
+		 * unsigned long which are different sizes in CHERI.
 		 */
-
 		LOG_ERR("     ca0: " PR_REG "    ct0: " PR_REG, (unsigned long)esf->ca0,
 			(unsigned long)esf->ct0);
 		LOG_ERR("     ca1: " PR_REG "    ct1: " PR_REG, (unsigned long)esf->ca1,

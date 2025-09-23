@@ -478,4 +478,18 @@ config ISR_TABLE_USE_SYMBOLS
 	default n
 	help
 	  use with capabilities
+
+config RISCV_ISA_ZCHERIPURECAP_ABI
+	bool "For using codasip ZCHERIPURECAP_ABI"
+	depends on CHERI
+	default n
+	help
+	  use with capabilities
+
+config RISCV_ISA_ZCHERIHYBRID_ABI
+	bool "For using codasip RISCV_ISA_ZCHERIHYBRID_ABI"
+	depends on CHERI
+	default n
+	help
+	  use with capabilities
 endmenu

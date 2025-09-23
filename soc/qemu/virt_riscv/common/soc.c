@@ -14,6 +14,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/sys/util.h>
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
+#endif
 
 #define SIFIVE_SYSCON_TEST 0x00100000
 
@@ -31,18 +34,15 @@
 #define FINISHER_REBOOT 0x7777
 
 /*
- * For CHERI we need to set the register/base address as a
- * capability with the correct bounds and permissions
+ * For CHERI we need to set the register/base address as a capability
+ * with the correct bounds and permissions
  */
 #ifdef __CHERI_PURE_CAPABILITY__
-extern void *mmdev_root_cap;                    /* root capability of the device memory map */
-#define REG_LENGTH             sizeof(uint32_t) /* length of register */
-/*
- * Define address as a capability, and set bounds.
- * Permissions are set on the device memory mmdev_root_cap
- */
-#define REG_ADDR_SET           __builtin_cheri_address_set(mmdev_root_cap, SIFIVE_SYSCON_TEST)
-#define SIFIVE_SYSCON_TEST_CAP __builtin_cheri_bounds_set(REG_ADDR_SET, REG_LENGTH)
+
+#define REG_LENGTH sizeof(uint32_t) /* length of register */
+
+#define SIFIVE_SYSCON_TEST_CAP (uintptr_t)cheri_build_device_cap(SIFIVE_SYSCON_TEST, REG_LENGTH)
+
 #endif
 
 void sys_arch_reboot(int type)

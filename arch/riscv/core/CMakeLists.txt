@@ -1,3 +1,4 @@
+# * Copyright (c) 2025 University of Birmingham, Modified to support CHERI codasip xa730, v0.9.x CHERI spec
 # SPDX-License-Identifier: Apache-2.0
 
 zephyr_library()
@@ -34,3 +35,6 @@ zephyr_library_sources_ifdef(CONFIG_SEMIHOST semihost.c)
 zephyr_library_sources_ifdef(CONFIG_ARCH_STACKWALK stacktrace.c)
 zephyr_linker_sources(ROM_START SORT_KEY 0x0vectors vector_table.ld)
 zephyr_library_sources_ifdef(CONFIG_LLEXT elf.c)
+
+
+zephyr_library_sources_ifdef(CONFIG_CHERI cheri/cheri_funcs.c)

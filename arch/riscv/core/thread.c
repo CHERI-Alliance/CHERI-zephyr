@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2016 Jean-Paul Etienne <fractalclone@gmail.com>
  * Copyright (c) 2020 BayLibre, SAS
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, support for CHERI codasip xa730, v0.9.x spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/kernel.h>
@@ -34,7 +35,7 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack, char *sta
 	stack_init = (struct arch_esf *)Z_STACK_PTR_ALIGN(
 		Z_STACK_PTR_TO_FRAME(struct arch_esf, stack_ptr));
 
-/* Setup the initial stack frame */
+	/* Setup the initial stack frame */
 #ifdef __CHERI_PURE_CAPABILITY__
 	stack_init->ca0 = (uintptr_t)entry;
 	stack_init->ca1 = (uintptr_t)p1;
@@ -88,7 +89,7 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack, char *sta
 
 	/* Assign thread entry point and mstatus.MPRV mode. */
 	if (IS_ENABLED(CONFIG_USERSPACE) && (thread->base.user_options & K_USER)) {
-/* User thread */
+		/* User thread */
 #ifdef __CHERI_PURE_CAPABILITY__
 		stack_init->mepcc = (uintptr_t)k_thread_user_mode_enter;
 #else
@@ -234,7 +235,7 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry, void *p1, v
 	register void *ca2 __asm__("ca2") = p2;
 	register void *ca3 __asm__("ca3") = p3;
 
-	__asm__ volatile("cmove csp, %4; mret"
+	__asm__ volatile("#M_CMOVE csp, %4; mret"
 			 :
 			 : "r"(ca0), "r"(ca1), "r"(ca2), "r"(ca3), "r"(top_of_user_stack)
 			 : "memory");
@@ -293,7 +294,7 @@ FUNC_NORETURN void z_riscv_switch_to_main_no_multithreading(k_thread_entry_t mai
 	register uintptr_t ca0 __asm__("ca0") = (uintptr_t)main_entry;
 	register uintptr_t ca1 __asm__("ca1") = (uintptr_t)main_stack;
 
-	__asm__ volatile("cmove csp, %0; cjalr cra, %1, 0" : : "r"(ca1), "r"(ca0) : "memory");
+	__asm__ volatile("#M_CMOVE csp, %0; cjalr cra, %1, 0" : : "r"(ca1), "r"(ca0) : "memory");
 #else
 	__asm__ volatile("mv sp, %0; jalr ra, %1, 0"
 			 :

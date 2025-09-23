@@ -1,9 +1,10 @@
 /*
  * Copyright (c) 2021 Intel Corporation
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, support for CHERI codasip xa730, v0.9.x spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <zephyr/init.h>
@@ -14,6 +15,10 @@
 #include <zephyr/arch/riscv/irq.h>
 #include <zephyr/drivers/pm_cpu_ops.h>
 #include <zephyr/platform/hooks.h>
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <../arch/riscv/include/cheri/cheri_riscv_asm_defines.h>
+#endif
 
 volatile struct {
 	arch_cpustart_t fn;
@@ -74,7 +79,7 @@ void arch_secondary_cpu_init(int hartid)
 	/* CHERI extends thread pointer register tp to ctp */
 	/* assign like this to remove error: couldn't allocate input reg for constraint 'r' */
 	register uintptr_t ca0 __asm__("ca0") = (uintptr_t)z_idle_threads[cpu_num].tls;
-	__asm__("cmove ctp, %0" : : "r"(ca0));
+	__asm__(STRINGIFY(M_CMOVE)" ctp, %0" : : "r"(ca0));
 #else
 	__asm__("mv tp, %0" : : "r"(z_idle_threads[cpu_num].tls));
 #endif

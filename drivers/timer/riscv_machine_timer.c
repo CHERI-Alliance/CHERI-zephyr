@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2024 MASSDRIVER EI (massdriver.space)
  * Copyright (c) 2018-2023 Intel Corporation
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, support for CHERI codasip xa730, v0.9.x spec
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 #include <limits.h>
@@ -17,16 +18,18 @@
 #include <zephyr/irq.h>
 
 /*
- * For CHERI we need to set the device memory base address as a capability with the correct bounds
- * and permissions. Import the device memory map capability
+ * For CHERI we need to set the device memory base address as a capability
+ * with the correct bounds and permissions
  */
 #ifdef __CHERI_PURE_CAPABILITY__
-extern void *mmdev_root_cap;
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h> /* cheri_build_device_cap */
 #endif
 
 #define DT_DRV_COMPAT riscv_machine_timer
 
-/* For CHERI we need to set the base address as a capability with the correct bounds and permissions
+/*
+ * For CHERI we need to set the base address as a capability
+ * with the correct bounds and permissions
  */
 #ifdef __CHERI_PURE_CAPABILITY__
 /* Get base addresses and sizes for each reg entry */
@@ -48,10 +51,11 @@ extern void *mmdev_root_cap;
  */
 #endif
 
-#define MTIME_BASE_ADDR_SET(n, m)                                                                  \
-	(uintptr_t)__builtin_cheri_address_set(mmdev_root_cap, DT_INST_REG_ADDR_BY_IDX(n, m))
-#define MTIME_BASE_ADDR(n, m, size)                                                                \
-	(uintptr_t)__builtin_cheri_bounds_set(MTIME_BASE_ADDR_SET(n, m), size)
+/* clang-format off */
+#define MTIME_BASE_ADDR(n, m, size)                                                           \
+	(uintptr_t)cheri_build_device_cap(DT_INST_REG_ADDR_BY_IDX(n, m), size)
+/* clang-format on */
+
 /* Define capability-based addresses for each region */
 #define MTIME_REG    MTIME_BASE_ADDR(0, 0, MTIME_MMAP_LENGTH)
 #define MTIMECMP_REG MTIME_BASE_ADDR(0, 1, MTIMECMP_MMAP_LENGTH)
@@ -147,7 +151,7 @@ static uint64_t mtime(void)
 
 /*
  * CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine
- * the capability for the function in the ISR table, but can also be used for non-capabilities
+ * the capability for the function in the ISR table, but can also be used for non-capabilities.
  * When using symbols in the ISR table (instead of fixed addresses) include the non-static function
  * head here. Symbols are necessary for CHERI.
  */

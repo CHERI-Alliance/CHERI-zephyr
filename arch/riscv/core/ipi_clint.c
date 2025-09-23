@@ -11,10 +11,11 @@
 
 /*
  * For CHERI we need to set the device memory base address as a capability with
- * the correct bounds and permissions, import the device memory map capability.
+ * the correct bounds and permissions.
  */
 #ifdef __CHERI_PURE_CAPABILITY__
-extern void *mmdev_root_cap;
+/* cheri_build_device_cap */
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h>
 #endif
 
 #define CLINT_NODE DT_NODELABEL(clint)
@@ -30,8 +31,7 @@ extern void *mmdev_root_cap;
 #ifdef __CHERI_PURE_CAPABILITY__
 /* change bound length depending upon number of CPU/hartid */
 #define MSIP_BASE_LENGTH sizeof(uint32_t) * CONFIG_MP_MAX_NUM_CPUS
-#define MSIP_BASE_SET    __builtin_cheri_address_set(mmdev_root_cap, MSIP_BASE)
-#define MSIP_BASE_ADDR   __builtin_cheri_bounds_set(MSIP_BASE_SET, MSIP_BASE_LENGTH)
+#define MSIP_BASE_ADDR   (uintptr_t)cheri_build_device_cap(MSIP_BASE, MSIP_BASE_LENGTH)
 #define MSIP(hartid)     ((volatile uint32_t *)MSIP_BASE_ADDR)[hartid]
 
 /* Otherwise set as normal */

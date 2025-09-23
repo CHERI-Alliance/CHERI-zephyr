@@ -1,28 +1,16 @@
 /*
  * Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
  * Contributors: 2018 Antmicro <www.antmicro.com>
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
+ * Copyright (c) 2025 University of Birmingham, support for CHERI codasip xa730, v0.9.x spec
  *
  * SPDX-License-Identifier: Apache-2.0
- *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
- #include <zephyr/toolchain.h>
+#include <zephyr/toolchain.h>
 
 #ifdef __CHERI_PURE_CAPABILITY__
-/* CHERI ISA RISCV PERMISSIONS */
-#define	CHERI_GLOBAL				(1 << 0)	/* 0x00000001 */
-#define	CHERI_PERMIT_EXECUTE			(1 << 1)	/* 0x00000002 */
-#define	CHERI_PERMIT_LOAD			(1 << 2)	/* 0x00000004 */
-#define	CHERI_PERMIT_STORE			(1 << 3)	/* 0x00000008 */
-#define	CHERI_PERMIT_LOAD_CAPABILITY		(1 << 4)	/* 0x00000010 */
-#define	CHERI_PERMIT_STORE_CAPABILITY		(1 << 5)	/* 0x00000020 */
-#define	CHERI_PERMIT_STORE_LOCAL_CAPABILITY	(1 << 6)	/* 0x00000040 */
-#define	CHERI_PERMIT_SEAL			(1 << 7)	/* 0x00000080 */
-#define	CHERI_PERMIT_CINVOKE			(1 << 8)	/* 0x00000100 */
-#define	CHERI_PERMIT_UNSEAL			(1 << 9)	/* 0x00000200 */
-#define	CHERI_PERMIT_ACCESS_SYSTEM_REGISTERS	(1 << 10)	/* 0x00000400 */
-#define	CHERI_PERMIT_SET_CID			(1 << 11)	/* 0x00000800 */
+#include <cheri/cheri_riscv_asm_defines.h>
 #endif
 
 /* exports */
@@ -38,7 +26,7 @@ SECTION_FUNC(vectors, __start)
 #if defined(CONFIG_RISCV_GP)
 	/* Initialize global pointer */
 #ifdef __CHERI_PURE_CAPABILITY__
-	cmove	cgp, cnull
+	M_CMOVE	cgp, cnull
 #else
 	.option push
 	.option norelax
@@ -57,6 +45,21 @@ SECTION_FUNC(vectors, __start)
 
 /* put into purecap mode */
 #ifdef __CHERI_PURE_CAPABILITY__
+
+#ifdef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
+/*
+ * for Zcheripurecap only, RISC-V 9.5 spec core starts in purecap mode.
+ * we cannot switch or check modes for purecap only.
+ * do nothing here.
+ */
+#else
+/*
+* V8.0 cambridge spec - put into purecap mode.
+* cambridge cores may start in non-cap mode and so we need to switch.
+* here the auipcc instruction (see M_CMOVE_PCC) which works for cap and
+* non-cap modes with cap registers.
+*/
+/* put into purecap mode */
 	.option push
 	.option nocapmode
 
@@ -66,8 +69,13 @@ SECTION_FUNC(vectors, __start)
 	 * These instructions work in both modes.
 	 */
 	lla	t0, 1f
-	cspecialr ct1, pcc
-	csetaddr ct1, ct1, t0
+
+	/*
+	* M_CMOVE_PCC uses cspecialr ct1, pcc, which uses auipcc which
+	* works for cap and non-cap modes in the cambridge cores
+	*/
+	M_CMOVE_PCC ct1, pcc
+	M_CSETADDR ct1, ct1, t0
 	/*
 	* If you don't set flag, cllc and auipcc instructions loose the
 	* capability tag when using pcc.
@@ -83,31 +91,27 @@ SECTION_FUNC(vectors, __start)
 #endif
 	1:
 	.option pop
-#endif
+#endif /* CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI */
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
-boundpcc:
 /* Bound PCC */
 #ifdef __CHERI_PURE_CAPABILITY__
+boundpcc:
 	/* Create a reduced PCC. */
 	/* this needs doing before set trap vector because cllc uses the bounds of pcc */
-	cllc	ct0, __start /* __start start of function/base kernel - set base addr to __start*/
-	cllc	ct1, _end /* _end in linker */
+	M_CLLC	ct0, __start /* __start start of function/base kernel - set base addr to __start*/
+	M_CLLC	ct1, _end /* _end in linker */
 	sub	t2, t1, t0 /* get length */
-	csetaddr ct0, ct0, t0 /*set base address */
-	csetbounds ct0, ct0, t2 /* set upper bound */
-	/* set permissions */
-	li	t2, CHERI_GLOBAL | \
-		CHERI_PERMIT_LOAD | \
-		CHERI_PERMIT_LOAD_CAPABILITY | \
-		CHERI_PERMIT_STORE | \
-		CHERI_PERMIT_STORE_CAPABILITY | \
-		CHERI_PERMIT_STORE_LOCAL_CAPABILITY | \
-		CHERI_PERMIT_EXECUTE | \
-		CHERI_PERMIT_ACCESS_SYSTEM_REGISTERS
-	candperm ct0, ct0, t2
-	cllc	ct1, 1f /* where to go now */
-	csetaddr ct0, ct0, t1 /* set new starting address for PCC */
-	cjr	ct0 /* jump to new PCC with reduced bounds */
+	M_CSETADDR ct0, ct0, t0 /*set base address */
+	M_CSETBOUNDS ct0, ct0, t2 /* set upper bound */
+	/* set permissions - allow PCC write perms until created stacks and cleared bss in reset.S*/
+	li	t2, CHERI_PERM_EXECUTABLE_AND_LOADSTORE
+	M_CANDPERM ct0, ct0, t2
+	M_CLLC	ct1, 1f /* where to go now */
+	M_CSETADDR ct0, ct0, t1 /* set new starting address for PCC */
+	M_CJR	ct0 /* jump to new PCC with reduced bounds */
+/*align jump to 16 bytes for 64 bit arch */
+.balign 16
 1:
 #endif
 
@@ -125,7 +129,7 @@ boundpcc:
 	 */
 #if defined(CONFIG_GEN_SW_ISR_TABLE)
 #ifdef __CHERI_PURE_CAPABILITY__
-	cllc	ct0, _isr_wrapper /*Load Linked Capability via Capability isr.S file */
+	M_CLLC	ct0, _isr_wrapper /*Load Linked Capability via Capability isr.S file */
 #else
 	la t0, _isr_wrapper
 #endif
@@ -143,10 +147,10 @@ boundpcc:
 #endif
 #ifdef __CHERI_PURE_CAPABILITY__
 	li t1, 0x03 /* Enable CLIC vectored mode by setting LSB */
-	cincoffset ct0, ct0, t1
-	cspecialw mtcc, ct0 /*Machine trap code capability*/
-	cmove	ct1, cnull
-	cspecialw mtdc, ct1 /*Machine trap data capability */
+	M_CINCOFFSET ct0, ct0, t1
+	M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
+	M_CMOVE	ct1, cnull
+	M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
 #else
 	addi t0, t0, 0x03 /* Enable CLIC vectored mode by setting LSB */
 	csrw mtvec, t0
@@ -166,7 +170,7 @@ boundpcc:
 	 * interrupt table.
 	 */
 #ifdef __CHERI_PURE_CAPABILITY__
-		cllc	ct0, _irq_vector_table /* Load Linked Capability via Capability */
+		M_CLLC	ct0, _irq_vector_table /* Load Linked Capability via Capability */
 
 		/*
 		 * Not sure if this will work in purcap mode as memory mapped register
@@ -195,14 +199,14 @@ boundpcc:
 	 *        of _irq_vector_table breaks this code.
 	 */
 #ifdef __CHERI_PURE_CAPABILITY__
-		cllc	ct0, _irq_vector_table /*Load Linked Capability via Capability isr.S file */
+		M_CLLC	ct0, _irq_vector_table /*Load Linked Capability via Capability isr.S file */
 
 		li t1, 0x01 /* Enable CLIC vectored mode by setting LSB */
-		cincoffset ct0, ct0, t1
+		M_CINCOFFSET ct0, ct0, t1
 
-		cspecialw mtcc, ct0 /*Machine trap code capability*/
-		cmove	ct1, cnull
-		cspecialw mtdc, ct1 /*Machine trap data capability */
+		M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
+		M_CMOVE	ct1, cnull
+		M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
 #else
 		la t0, _irq_vector_table /* Load address of interrupt vector table */
 		addi t0, t0, 0x01 /* Enable vectored mode by setting LSB */
@@ -215,13 +219,13 @@ boundpcc:
 #if defined(CONFIG_RISCV_HAS_CLIC) && !defined(CONFIG_LEGACY_CLIC)
 
 #ifdef __CHERI_PURE_CAPABILITY__
-	cllc	ct0, _isr_wrapper
+	M_CLLC	ct0, _isr_wrapper
 	li t1, 0x03 /* Enable CLIC vectored mode by setting LSB */
-	cincoffset ct0, ct0, t1
+	M_CINCOFFSET ct0, ct0, t1
 
-	cspecialw mtcc, ct0 /*Machine trap code capability*/
-	cmove	ct1, cnull
-	cspecialw mtdc, ct1 /*Machine trap data capability */
+	M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
+	M_CMOVE	ct1, cnull
+	M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
 #else
 	la t0, _isr_wrapper
 	addi t0, t0, 0x03 /* Set mode bits to 3, signifying CLIC. Everything else is reserved. */
@@ -238,10 +242,10 @@ boundpcc:
 	 */
 #ifdef __CHERI_PURE_CAPABILITY__
 		/*NOT VECTORED_MODE Load Linked Capability via Capability isr.S file */
-		cllc	ct0, _isr_wrapper
-		cspecialw mtcc, ct0 /*Machine trap code capability*/
-		cmove	ct1, cnull
-		cspecialw mtdc, ct1 /*Machine trap data capability */
+		M_CLLC	ct0, _isr_wrapper
+		M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
+		M_CMOVE	ct1, cnull
+		M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
 #else
 		la t0, _isr_wrapper
 		csrw mtvec, t0
@@ -253,8 +257,8 @@ boundpcc:
 
 	/* Jump to __reset */
 #ifdef __CHERI_PURE_CAPABILITY__
-		cllc	ct0, __reset /* Load PCC-relative capability */
-		cjr ct0
+		M_CLLC	ct0, __reset /* Load PCC-relative capability */
+		M_CJR ct0
 
 #else
 		tail __reset
@@ -265,9 +269,9 @@ boundpcc:
 #ifdef __CHERI_PURE_CAPABILITY__
 .local bounded_trap
 bounded_trap:
-    auipcc ct0, 0          /* Load capability for this location */
-    cincoffset ct0, ct0, 0  /* Align the capability */
-    csetbounds ct0, ct0, 16 /* Restrict execution to 16 bytes */
+    M_CMOVE_PCC ct0, pcc          /* Load capability for this location */
+    M_CINCOFFSET ct0, ct0, 0  /* Align the capability */
+    M_CSETBOUNDS ct0, ct0, 16 /* Restrict execution to 16 bytes */
     j ct0         /* Loop within bounded range */
 #endif
 #endif
