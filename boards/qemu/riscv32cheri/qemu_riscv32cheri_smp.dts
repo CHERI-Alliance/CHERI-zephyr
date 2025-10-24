@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include <qemu/virt-riscv32.dtsi>
+#include "qemu_riscv32_uart1.dtsi"
 
 / {
 	chosen {

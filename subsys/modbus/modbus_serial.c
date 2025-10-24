@@ -250,7 +250,8 @@ static int modbus_rtu_rx_adu(struct modbus_context *ctx)
 	/* Is the message long enough? */
 	if ((cfg->uart_buf_ctr < MODBUS_RTU_MIN_MSG_SIZE) ||
 	    (cfg->uart_buf_ctr > CONFIG_MODBUS_BUFFER_SIZE)) {
-		LOG_WRN("Frame length error");
+		LOG_WRN("Frame length error: %d (min %d, max %d)", cfg->uart_buf_ctr,
+			MODBUS_RTU_MIN_MSG_SIZE, CONFIG_MODBUS_BUFFER_SIZE);
 		return -EMSGSIZE;
 	}
 
@@ -393,7 +394,6 @@ static void uart_cb_handler(const struct device *dev, void *app_data)
 	}
 
 	if (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
-
 		if (uart_irq_rx_ready(dev)) {
 			cb_handler_rx(ctx);
 		}

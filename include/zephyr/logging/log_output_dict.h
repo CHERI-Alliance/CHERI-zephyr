@@ -51,7 +51,12 @@ struct log_dict_output_normal_msg_hdr_t {
 struct log_dict_output_dropped_msg_t {
 	uint8_t type;
 	uint16_t num_dropped_messages;
-} __packed;
+}
+#ifndef __CHERI_PURE_CAPABILITY__
+__packed;
+#else
+;
+#endif
 
 /** @brief Process log messages v2 for dictionary-based logging.
  *

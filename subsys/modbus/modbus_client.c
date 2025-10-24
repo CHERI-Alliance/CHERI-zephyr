@@ -36,14 +36,17 @@ static int mbc_validate_response_fc(struct modbus_context *ctx,
 	const uint8_t excep_mask = BIT_MASK(7);
 
 	if (unit_id != ctx->rx_adu.unit_id) {
+		LOG_DBG("Got unit ID %02x, want %02x", ctx->rx_adu.unit_id, unit_id);
 		return -EIO;
 	}
 
 	if (fc != (resp_fc & excep_mask)) {
+		LOG_DBG("Got fc %02x, want %02x", (resp_fc & excep_mask), fc);
 		return -EIO;
 	}
 
 	if (resp_fc & excep_bit) {
+		LOG_DBG("Got resp_fc & excep_bit set");
 		if (excep_code > MODBUS_EXC_NONE) {
 			return excep_code;
 		}
@@ -253,6 +256,8 @@ static int mbc_send_cmd(struct modbus_context *ctx, const uint8_t unit_id,
 	if (err != 0) {
 		return err;
 	}
+
+	LOG_DBG("%s: unit ID = %02x, fc = %02x", __func__, unit_id, fc);
 
 	err = mbc_validate_response_fc(ctx, unit_id, fc);
 	if (err < 0) {

@@ -49,6 +49,9 @@
 #include <zephyr/arch/riscv/cheri/cheri_funcs.h>
 #endif
 
+/* Non-static as needed for CHERI ISR */
+void uart_ns16550_isr(const struct device *dev);
+
 LOG_MODULE_REGISTER(uart_ns16550, CONFIG_UART_LOG_LEVEL);
 
 #define UART_NS16550_PCP_ENABLED  DT_ANY_INST_HAS_PROP_STATUS_OKAY(pcp)
@@ -1296,7 +1299,7 @@ static void uart_ns16550_irq_callback_set(const struct device *dev,
  *
  * @param arg Argument to ISR.
  */
-static void uart_ns16550_isr(const struct device *dev)
+void uart_ns16550_isr(const struct device *dev)
 {
 	struct uart_ns16550_dev_data *const dev_data = dev->data;
 	const struct uart_ns16550_dev_config *const dev_cfg = dev->config;

@@ -4,6 +4,7 @@
 /dts-v1/;
 
 #include <qemu/virt-riscv64.dtsi>
+#include "qemu_riscv64_uart1.dtsi"
 
 / {
 	chosen {
