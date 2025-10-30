@@ -1,0 +1,17 @@
+identifier: qemu_riscv32cheri_smp_zcheripurecap
+name: QEMU Emulation for RISC-V 32-bit SMP with CHERI ZCHERIPURECAP
+type: qemu
+simulation:
+  - name: qemu
+arch: riscv
+toolchain:
+  - llvm-cheri
+supported:
+  - netif
+  - smp
+ram: 262144
+flash: 32768
+testing:
+  ignore_tags:
+    - net
+    - bluetooth

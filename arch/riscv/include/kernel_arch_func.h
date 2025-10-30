@@ -33,7 +33,7 @@ static ALWAYS_INLINE void arch_kernel_init(void)
 #ifdef CONFIG_THREAD_LOCAL_STORAGE
 #ifdef __CHERI_PURE_CAPABILITY__
 	/* cap thread pointer */
-	__asm__ volatile("li ctp, 0");
+	__asm__ volatile(STRINGIFY(M_CMOVE)" ctp, cnull");
 #else
 	__asm__ volatile("li tp, 0");
 #endif

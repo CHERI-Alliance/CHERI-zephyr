@@ -76,10 +76,17 @@ typedef void (* ISR)(const void *);
         # I uint	num vectors 4 bytes
         # I uint	offset 4 bytes
         # q long long padding 8 bytes
+        # For CHERI struct is 8 byte aligned (for 32 bit system) no extra padding required
+        # I uint	num vectors 4 bytes
+        # I uint	offset 4 bytes
         if self.__config.check_sym("CONFIG_CHERI"):
-            intlist_header_fmt_pad = prefix + "IIq"
-            # For CHERI include padding in the header size calculation
-            header_sz = struct.calcsize(intlist_header_fmt_pad)
+            if self.__config.check_sym("CONFIG_64BIT"):
+                intlist_header_fmt_pad = prefix + "IIq"
+                # For CHERI include padding in the header size calculation
+                header_sz = struct.calcsize(intlist_header_fmt_pad)
+            else:
+                intlist_header_fmt_pad = prefix + "II"
+                header_sz = struct.calcsize(intlist_header_fmt_pad)
         else:
             header_sz = struct.calcsize(intlist_header_fmt)
 
@@ -93,7 +100,7 @@ typedef void (* ISR)(const void *);
 
         # Extract information about interrupts
         if self.__config.check_64b():
-            # For CHERI *func and *param are twice the length
+            # For CHERI 64bit *func and *param are twice the length
             # i int32 line number 4 bytes
             # i int32 flags 4 bytes
             # q long long padding alignment 8 bytes because capabilities are aligned to 16 byte boundary (assuming start of struct is aligned to 16 byte boundary)
@@ -104,15 +111,24 @@ typedef void (* ISR)(const void *);
             else:
                 intlist_entry_fmt = prefix + "iiQQ"
         else:
-            intlist_entry_fmt = prefix + "iiII"
+            if self.__config.check_sym("CONFIG_CHERI"):
+                # For CHERI 32bit *func and *param are twice the length
+                # i int32 line number 4 bytes
+                # i int32 flags 4 bytes
+                # II 2*unsigned long *func 8 bytes
+                # II 2*unsigned long *param 8 bytes
+                # no extra padding required - should be 8 byte boundary for 32bit
+                intlist_entry_fmt = prefix + "iiIIII"
+            else:
+                intlist_entry_fmt = prefix + "iiII"
 
         #For CHERI add some extra debug info
         if self.__config.check_sym("CONFIG_CHERI"):
             self.__log.debug("header size inc. padding in bytes: \"{}\"".format(header_sz)) #add debug
             self.__log.debug("header format inc. padding (q): \"{}\"".format(intlist_header_fmt_pad)) #add debug
-            #self.__log.debug("intdata: \"{}\"".format(intdata)) #add debug
+            self.__log.debug("intdata: \"{}\"".format(intdata)) #add debug
             self.__log.debug("intdata size in bytes: \"{}\"".format(len(intdata))) #add debug
-            self.__log.debug("indata format inc. padding (q): \"{}\"".format(intlist_entry_fmt)) #add debug
+            self.__log.debug("intdata format inc. padding (q): \"{}\"".format(intlist_entry_fmt)) #add debug
 
         intlist["interrupts"] = [i for i in
                 struct.iter_unpack(intlist_entry_fmt, intdata)]
@@ -124,6 +140,7 @@ typedef void (* ISR)(const void *);
         #For CHERI we do not want to display padding or capability bounds info
         if self.__config.check_sym("CONFIG_CHERI"):
             #"iiqQQQQ" -> 0123456 inc CHERI padding, we only want to display 0135
+            #"iiIIIIq" -> 0123456 inc CHERI padding, we only want to display 0135
             for irq in intlist["interrupts"]:
                 self.__log.debug("{0:<10} {1:<3} {2:<3} {3} ".format(
                     hex(irq[3]), irq[0], irq[1], hex(irq[5])))
@@ -189,6 +206,9 @@ typedef void (* ISR)(const void *);
                 self.__log.debug("paramlist - irq: \"{}\"".format(irq)) #add debug
                 self.__log.debug("paramlist - func: 0x{:X}".format(func)) #add debug
                 self.__log.debug("paramlist - param: 0x{:X}".format(param)) #add debug
+                self.__log.debug("paramlist - paramlist[4]: 0x{:X}".format(paramlist[4])) #add debug
+                if self.__config.check_sym("CONFIG_64BIT"):
+                    self.__log.debug("paramlist - paramlist[6]: 0x{:X}".format(paramlist[6])) #add debug
             else:
                 irq = paramlist[0]
                 flags = paramlist[1]

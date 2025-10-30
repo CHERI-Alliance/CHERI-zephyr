@@ -41,36 +41,60 @@ if(NOT "${ARCH}" STREQUAL "posix")
     list(APPEND TOOLCHAIN_LD_FLAGS "--target=${triple}")
     message(STATUS, "arm64 found")
 #  endif()
-    #add riscv for riscv32/64
-    #-mno-relax needed to turn off riscv code optimisation by the linker which isn't present in version 14.0.0 version of llvm
-    #when -mno-relax used only get error: relocation R_RISCV_HI20 out of range:
-    #so also include -mcmodel=medany to tell the compiler to use auipc/jalr pair when jumping, which gives you a larger range of ±2GB
-    elseif("${ARCH}" STREQUAL "riscv")
-
+   #add riscv for riscv32/64
+  elseif("${ARCH}" STREQUAL "riscv")
 	if(CONFIG_CHERI)
-		#if compiling for riscv64 CHERI-PURECAP
-		if(CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI)
-		#CHERI-PURECAP new RISC-V spec v0.9.5
-		message(STATUS, "Compiling for riscv64 CHERI-PURECAP new RISC-V spec v0.9.5")
-		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
-		string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
-		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+		if(CONFIG_64BIT)
+			#if compiling for riscv64 CHERI-PURECAP
+			if(CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI)
+			#CHERI-PURECAP new RISC-V spec v0.9.5
+			message(STATUS, "Compiling for riscv64 CHERI-PURECAP new RISC-V spec v0.9.5")
+			string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+			string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+			string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+			else()
+			#CHERI-PURECAP Cambs spec v8.0
+			message(STATUS, "Compiling for riscv64 CHERI-PURECAP Cambs spec v8.0")
+			string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
+			string(PREPEND CMAKE_C_FLAGS   "-march=rv64gcxcheri -mabi=l64pc128d ")
+			string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
+			endif()
 		else()
-		#CHERI-PURECAP Cambs spec v8.0
-		message(STATUS, "Compiling for riscv64 CHERI-PURECAP Cambs spec v8.0")
-		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
-		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gcxcheri -mabi=l64pc128d ")
-		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gcxcheri -mabi=l64pc128d ")
+			#if compiling for riscv32 CHERI-PURECAP
+			if(CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI)
+			#CHERI-PURECAP new RISC-V spec v0.9.5
+			message(STATUS, "Compiling for riscv32 CHERI-PURECAP new RISC-V spec v0.9.5")
+			string(PREPEND CMAKE_ASM_FLAGS "-march=rv32imafdzcheripurecap -mabi=il32pc64 ")
+			string(PREPEND CMAKE_C_FLAGS   "-march=rv32imafdzcheripurecap -mabi=il32pc64 ")
+			string(PREPEND CMAKE_CXX_FLAGS "-march=rv32imafdzcheripurecap -mabi=il32pc64 ")
+			else()
+			#CHERI-PURECAP Cambs spec v8.0
+			message(STATUS, "Compiling for riscv32 CHERI-PURECAP Cambs spec v8.0")
+			string(PREPEND CMAKE_ASM_FLAGS "-march=rv32gcxcheri -mabi=il32pc64 ")
+			string(PREPEND CMAKE_C_FLAGS   "-march=rv32gcxcheri -mabi=il32pc64 ")
+			string(PREPEND CMAKE_CXX_FLAGS "-march=rv32gcxcheri -mabi=il32pc64 ")
+			endif()
 		endif()
 	else()
+		#Note older versions of clang such as the cheri one do not support all the extensions
+		#in include(${ZEPHYR_BASE}/cmake/compiler/gcc/target_riscv.cmake)
+		if(CONFIG_64BIT)
 		#if compiling for normal riscv64
 		#-march=rv64gc gc adds the floating point option and others
 		message(STATUS, "Compiling for riscv64 only")
 		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64gc ")
 		string(PREPEND CMAKE_C_FLAGS   "-march=rv64gc ")
 		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64gc ")
+		else()
+		message(STATUS, "Compiling for riscv32")
+		string(PREPEND CMAKE_ASM_FLAGS "-march=rv32gc -mabi=ilp32 ")
+		string(PREPEND CMAKE_C_FLAGS   "-march=rv32gc -mabi=ilp32 ")
+		string(PREPEND CMAKE_CXX_FLAGS "-march=rv32gc -mabi=ilp32 ")
+		endif()
 	endif()
-
+    #-mno-relax needed to turn off riscv code optimisation by the linker which isn't present in version 14.0.0 version of llvm
+    #when -mno-relax used only get error: relocation R_RISCV_HI20 out of range:
+    #so also include -mcmodel=medany to tell the compiler to use auipc/jalr pair when jumping, which gives you a larger range of ±2GB
     list(APPEND TOOLCHAIN_C_FLAGS "--target=${triple}")
     list(APPEND TOOLCHAIN_LD_FLAGS "--target=${triple}")
     list(APPEND TOOLCHAIN_C_FLAGS "-mno-relax")
@@ -82,10 +106,10 @@ if(NOT "${ARCH}" STREQUAL "posix")
     message(STATUS, "default arch found")
   endif()
 
-message(STATUS, "triple : ${triple}")
-message(STATUS, "ARCH append: ${ARCH}")
-message(STATUS, "TOOLCHAIN_C_FLAGS append: ${TOOLCHAIN_C_FLAGS}")
-message(STATUS, "TOOLCHAIN_LD_FLAGS append: ${TOOLCHAIN_LD_FLAGS}")
+  message(STATUS, "triple : ${triple}")
+  message(STATUS, "ARCH append: ${ARCH}")
+  message(STATUS, "TOOLCHAIN_C_FLAGS append: ${TOOLCHAIN_C_FLAGS}")
+  message(STATUS, "TOOLCHAIN_LD_FLAGS append: ${TOOLCHAIN_LD_FLAGS}")
 
   foreach(file_name include/stddef.h)
     execute_process(
@@ -135,29 +159,36 @@ message(STATUS, "TOOLCHAIN_LD_FLAGS append: ${TOOLCHAIN_LD_FLAGS}")
 
   #get only the name of the file
   get_filename_component(LIBGCC_FILE_NAME_ONLY ${LIBGCC_FILE_NAME_DIR} NAME)
+  #strip for lib format
+  string(REPLACE ".a" "" LIBGCC_FILE_NAME_ONLY_NO_EXT ${LIBGCC_FILE_NAME_ONLY})
+  string(REPLACE "lib" "" LIBGCC_FILE_NAME_STRIPPED ${LIBGCC_FILE_NAME_ONLY_NO_EXT})
 
-  #get only the name of the directory, then, create the full path
-  if("${triple}" STREQUAL "riscv32")
-  set(LIBGCC_DIR ${TOOLCHAIN_HOME}../baremetal/baremetal-riscv32/lib/)
-  set(LIBGCC_FILE_NAME ${LIBGCC_DIR}${LIBGCC_FILE_NAME_ONLY})
-  list(APPEND LIB_INCLUDE_DIR -L${LIBGCC_DIR})
-  list(APPEND TOOLCHAIN_LIBS gcc) # seems to only find the libs if include this, works because of the libcc symlink
+  if("${triple}" STREQUAL "riscv32" OR "${triple}" STREQUAL "riscv32-unknown-elf")
+	#get only the name of the directory, then, create the full path
+	if(CONFIG_CHERI)
+		set(LIBGCC_DIR ${TOOLCHAIN_HOME}../baremetal/baremetal-riscv32-purecap/lib/)
+	else()
+		set(LIBGCC_DIR ${TOOLCHAIN_HOME}../baremetal/baremetal-riscv32/lib/)
+	endif()
+	list(APPEND CMAKE_EXE_LINKER_FLAGS "-L${LIBGCC_DIR} -l${LIBGCC_FILE_NAME_STRIPPED}")
+
   elseif("${triple}" STREQUAL "riscv64")
-  set(LIBGCC_DIR ${TOOLCHAIN_HOME}../baremetal/baremetal-riscv64/lib/)
-  set(LIBGCC_FILE_NAME ${LIBGCC_DIR}${LIBGCC_FILE_NAME_ONLY})
-  list(APPEND LIB_INCLUDE_DIR -L${LIBGCC_DIR})
-  #list(APPEND TOOLCHAIN_LIBS gcc)
+	set(LIBGCC_DIR ${TOOLCHAIN_HOME}../baremetal/baremetal-riscv64/lib/)
+	set(LIBGCC_FILE_NAME ${LIBGCC_DIR}${LIBGCC_FILE_NAME_ONLY})
+	list(APPEND LIB_INCLUDE_DIR -L${LIBGCC_DIR})
+	#list(APPEND TOOLCHAIN_LIBS gcc)
+
   #for running on morello runtime libs are in morello-sdk
   elseif("${triple}" STREQUAL "aarch64-none-elf")
-  set(LIBGCC_DIR ${TOOLCHAIN_HOME}../../morello-sdk/baremetal/baremetal-morello-aarch64/aarch64-unknown-elf/lib/)
-   # set(LIBGCC_DIR ${TOOLCHAIN_HOME}baremetal/baremetal-morello-aarch64/aarch64-unknown-elf/lib/)
-  set(LIBGCC_FILE_NAME ${LIBGCC_DIR}${LIBGCC_FILE_NAME_ONLY})
-  list(APPEND LIB_INCLUDE_DIR -L${LIBGCC_DIR})
-  #need to explicitly pass lib directory to linker for morello-sdk clang (v13.0) because can't find runtime lib otherwise.
-  list(APPEND CMAKE_EXE_LINKER_FLAGS "-Xlinker -L${LIBGCC_DIR}")
-  list(APPEND TOOLCHAIN_LIBS gcc)
+	set(LIBGCC_DIR ${TOOLCHAIN_HOME}../../morello-sdk/baremetal/baremetal-morello-aarch64/aarch64-unknown-elf/lib/)
+	# set(LIBGCC_DIR ${TOOLCHAIN_HOME}baremetal/baremetal-morello-aarch64/aarch64-unknown-elf/lib/)
+	set(LIBGCC_FILE_NAME ${LIBGCC_DIR}${LIBGCC_FILE_NAME_ONLY})
+	list(APPEND LIB_INCLUDE_DIR -L${LIBGCC_DIR})
+	#need to explicitly pass lib directory to linker for morello-sdk clang (v13.0) because can't find runtime lib otherwise.
+	list(APPEND CMAKE_EXE_LINKER_FLAGS "-Xlinker -L${LIBGCC_DIR}")
+	list(APPEND TOOLCHAIN_LIBS gcc)
   else()
-  message(STATUS, "!! TRIPLE NOT FOUND !!")
+	message(STATUS, "!! TRIPLE NOT FOUND !!")
   endif()
 #---------------------------------------------------
 
@@ -167,10 +198,14 @@ message(STATUS, "TOOLCHAIN_LD_FLAGS append: ${TOOLCHAIN_LD_FLAGS}")
 
 endif()
 
-message(STATUS, "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
-message(STATUS, "TOOLCHAIN_C_FLAGS: ${TOOLCHAIN_C_FLAGS}")
+message(STATUS, "triple: ${triple}")
+message(STATUS, "TOOLCHAIN_HOME: ${TOOLCHAIN_HOME}")
 message(STATUS, "LIBGCC_DIR: ${LIBGCC_DIR}")
+message(STATUS, "LIBGCC_FILE_NAME_ONLY: ${LIBGCC_FILE_NAME_ONLY}")
+message(STATUS, "LIBGCC_FILE_NAME_STRIPPED: ${LIBGCC_FILE_NAME_STRIPPED}")
+message(STATUS, "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
 message(STATUS, "LIBGCC_FILE_NAME: ${LIBGCC_FILE_NAME}")
+message(STATUS, "TOOLCHAIN_C_FLAGS: ${TOOLCHAIN_C_FLAGS}")
 message(STATUS, "find_program_clang_args: ${find_program_clang_args}")
 message(STATUS, "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
 message(STATUS, "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")

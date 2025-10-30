@@ -110,8 +110,8 @@ boundpcc:
 	M_CLLC	ct1, 1f /* where to go now */
 	M_CSETADDR ct0, ct0, t1 /* set new starting address for PCC */
 	M_CJR	ct0 /* jump to new PCC with reduced bounds */
-/*align jump to 16 bytes for 64 bit arch */
-.balign 16
+/*align jump to 16 bytes for 64 bit arch, 8 bytes for 32 bit arch */
+.balign CONFIG_LINKER_ITERABLE_SUBALIGN
 1:
 #endif
 

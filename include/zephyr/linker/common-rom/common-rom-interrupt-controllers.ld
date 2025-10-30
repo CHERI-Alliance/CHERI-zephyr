@@ -8,8 +8,8 @@
 
 #include <zephyr/linker/iterable_sections.h>
 
-#if defined(CONFIG_CHERI) && defined(CONFIG_64BIT)
-	ITERABLE_SECTION_ROM(intc_table, 16)
+#if defined(CONFIG_CHERI)
+	ITERABLE_SECTION_ROM(intc_table, Z_LINK_ITERABLE_SUBALIGN)
 #else
 
 	ITERABLE_SECTION_ROM(intc_table, 4)

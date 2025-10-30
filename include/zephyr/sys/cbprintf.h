@@ -88,7 +88,8 @@ union cbprintf_package_hdr {
 #endif
 
 #ifdef __CHERI_PURE_CAPABILITY__
-} __aligned(16);
+	/*align to 16 bytes for 64 bit arch, 8 bytes for 32 bit arch */
+} __aligned(CONFIG_LINKER_ITERABLE_SUBALIGN);
 #else
 } __packed;
 #endif
@@ -109,7 +110,8 @@ struct cbprintf_package_hdr_ext {
 	 * to pointer size.
 	 */
 #ifdef __CHERI_PURE_CAPABILITY__
-} __aligned(16);
+	/*align to 16 bytes for 64 bit arch, 8 bytes for 32 bit arch */
+} __aligned(CONFIG_LINKER_ITERABLE_SUBALIGN);
 #else
 } __packed;
 #endif

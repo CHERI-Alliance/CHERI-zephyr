@@ -21,6 +21,15 @@ config LLVM_USE_LLD
 
 endchoice
 
+config TOOLCHAIN_LLVM_SUPPORTS_THREAD_LOCAL_STORAGE
+	depends on RISCV
+	def_bool y
+	select TOOLCHAIN_SUPPORTS_THREAD_LOCAL_STORAGE
+
+config TOOLCHAIN_LLVM_SUPPORTS_GNU_EXTENSIONS
+	def_bool y
+	select TOOLCHAIN_SUPPORTS_GNU_EXTENSIONS
+
 #set default to not use CHERI configurations unless specified
 
 config CHERI

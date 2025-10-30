@@ -136,8 +136,13 @@ cheribss:
 	/* if nothing in bss skip else bounds exception when write */
 	beq s1, s0, 2f
 1:
+#ifdef CONFIG_64BIT
 	csd	zero, 0(cs0)
 	M_CINCOFFSETIMM cs0, cs0, 8
+#else
+	csw	zero, 0(cs0)
+	M_CINCOFFSETIMM cs0, cs0, 4
+#endif
 	bltu	s0, s1, 1b
 2:
 
@@ -150,8 +155,8 @@ cheribss:
 	li	t2, CHERI_PERM_EXECUTABLE
 	M_CANDPERM ct1, ct1, t2
 	M_CJR	ct1 /* jump to new PCC with reduced perms */
-/*align jump to 16 bytes for 64 bit arch */
-.balign 16
+/*align jump to 16 bytes for 64 bit arch, 8 bytes for 32 bit arch */
+.balign CONFIG_LINKER_ITERABLE_SUBALIGN
 1:
 
 initrelocs:

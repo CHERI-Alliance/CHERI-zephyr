@@ -1,0 +1,38 @@
+boards:
+
+  - name: qemu_riscv32cheri
+    full_name: QEMU Emulation for RISCV32cheri
+    vendor: qemu
+    socs:
+      - name: qemu_virt_riscv32
+        variants:
+          - name: smp
+  - name: qemu_riscv32cheri_smp
+    full_name: QEMU Emulation for RISCV32cheri_smp
+    vendor: qemu
+    socs:
+      - name: qemu_virt_riscv32
+  - name: qemu_riscv32cheri_purecap
+    full_name: QEMU Emulation for RISCV32cheri_purecap
+    vendor: qemu
+    socs:
+      - name: qemu_virt_riscv32
+        variants:
+          - name: smp
+  - name: qemu_riscv32cheri_smp_purecap
+    full_name: QEMU Emulation for RISCV32cheri_smp_purecap
+    vendor: qemu
+    socs:
+      - name: qemu_virt_riscv32
+  - name: qemu_riscv32cheri_zcheripurecap
+    full_name: QEMU Emulation for RISCV32cheri_zcheripurecap
+    vendor: qemu
+    socs:
+      - name: qemu_virt_riscv32
+        variants:
+          - name: smp
+  - name: qemu_riscv32cheri_smp_zcheripurecap
+    full_name: QEMU Emulation for RISCV32cheri_smp_zcheripurecap
+    vendor: qemu
+    socs:
+      - name: qemu_virt_riscv32

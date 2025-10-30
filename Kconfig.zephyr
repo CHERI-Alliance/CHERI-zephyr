@@ -330,6 +330,7 @@ endmenu # "Linker Sections"
 config LINKER_ITERABLE_SUBALIGN
 	int
 	default 16 if 64BIT && CHERI
+	default 8 if CHERI
 	default 8 if 64BIT
 	default 4
 	help
