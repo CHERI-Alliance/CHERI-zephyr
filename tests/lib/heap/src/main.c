@@ -397,8 +397,13 @@ static void heap_alloc_cb(uintptr_t heap_id, void *mem, size_t bytes)
 	listener_heap_id = heap_id;
 	listener_mem = mem;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	TC_PRINT("Heap %p, alloc %p, size %u\n",
+		 (void *)heap_id, mem, (uint32_t)bytes);
+#else
 	TC_PRINT("Heap 0x%" PRIxPTR ", alloc %p, size %u\n",
 		 heap_id, mem, (uint32_t)bytes);
+#endif
 }
 
 static void heap_free_cb(uintptr_t heap_id, void *mem, size_t bytes)
@@ -406,8 +411,13 @@ static void heap_free_cb(uintptr_t heap_id, void *mem, size_t bytes)
 	listener_heap_id = heap_id;
 	listener_mem = mem;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	TC_PRINT("Heap %p, free %p, size %u\n",
+		 (void *)heap_id, mem, (uint32_t)bytes);
+#else
 	TC_PRINT("Heap 0x%" PRIxPTR ", free %p, size %u\n",
 		 heap_id, mem, (uint32_t)bytes);
+#endif
 }
 #endif /* CONFIG_SYS_HEAP_LISTENER */
 
