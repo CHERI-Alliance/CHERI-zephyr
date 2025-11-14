@@ -33,15 +33,17 @@
 #endif
 
 /*----------------------------------------------------------------------------------*/
-/* CAPABILITY PERMISSIONS */
+/* CAPABILITY PERMISSIONS FOR DIFFERENT CHERI SPECS */
 /*----------------------------------------------------------------------------------*/
 #ifdef __CHERI_PURE_CAPABILITY__
 /* v0.9.x version of the CHERI spec */
-/*MXLEN=64*/
-/*AP field bits 44 to 51*/
 /*
- * reated as a 20 bit block 63 downto 44 when using the M_CANDPERM instruction
+ * Treated as a 20 bit block when using the M_CANDPERM instruction
  * (so includes M, SDP, and reserved fields), use ~ to remove a permission from a capability.
+ *
+ * Permissions register
+ * 18 17 16 ... 5  4  3  2  1  0
+ * R  X  ASR .. C CL SL EL LM  W
  */
 #if defined(__riscv_zcheripurecap)
 #define CHERI_PERM_CAP          __CHERI_CAP_PERMISSION_CAPABILITY__
@@ -57,7 +59,11 @@
 #define CHERI_PERM_CAPABILITY_LEVEL __CHERI_CAP_PERMISSION_CAPABILITY_LEVEL__
 #endif /* defined(__riscv_zcherilevels) */
 
-/* Capability permissions for Executable with load/store access*/
+#if defined(CONFIG_64BIT)
+
+/* 64 bit permissions set up */
+
+/* Capability permissions for Executable with load/store access */
 #define CHERI_PERM_EXECUTABLE_AND_LOADSTORE (~0x0)
 
 /* Capability permissions for Executable */
@@ -80,7 +86,54 @@
 /* Capability permissions for Write Only Data */
 #define CHERI_PERM_W_DATA (~(CHERI_PERM_READ | CHERI_PERM_EXECUTE))
 
-#else                                                  /* ! __riscv_zcheripurecap */
+#else
+
+/*
+ * 32 bit permissions set up - restricted combinations due to encoding
+ *
+ * quadrant 1 for purecap:
+ * valid combinations:
+ * 0: R,W,C,LM,X,ASR -> -		-> Execute + ASR
+ * 2: R,-,C,LM,X,-   -> W,ASR cleared	-> Execute + Data & Cap RO
+ * 4: R,W,C,LM,X,- -> ASR cleared	-> Execute + Data & Cap RW
+ * 6: R,W,-,-,X,- -> - C,LM,ASR cleared	-> Execute + Data RW
+ *
+ * quadrant 2 for Restricted capability data read/write:
+ * 3: R,-,C,-,-,- -> -		-> Data & Cap RO
+ *4+: R,W,C,LM,-,- -> -		-> Data & Cap RW
+ *
+ * quadrant 3 for capability data read/write:
+ * 3: R,-,C,LM,-,- -> -		-> Data & Cap RO
+ *4+: R,W,C,LM,-,- -> -		-> Data & Cap RW
+ */
+
+/* Capability permissions for Executable with load/store access + ASR */
+#define CHERI_PERM_EXECUTABLE_AND_LOADSTORE (~0x0)
+
+/* Capability permissions for Executable + ASR */
+#define CHERI_PERM_EXECUTABLE (~0x0)
+
+/* Capability permissions for Interrupt stacks */
+#define CHERI_PERM_INTERRUPT_STACKS (~CHERI_PERM_EXECUTE | CHERI_PERM_SYSTEM_REGS)
+
+/* Capability permissions for kernel data */
+#define CHERI_PERM_KERNEL_DATA (~CHERI_PERM_EXECUTE | CHERI_PERM_SYSTEM_REGS)
+
+/* Capability permissions for device memory region */
+/* Permit normal load and stores only - Data & Cap RW */
+#define CHERI_PERM_DEVICE_MEMORY (~(CHERI_PERM_EXECUTE | CHERI_PERM_SYSTEM_REGS))
+
+/* Capability permissions for Read Only Data */
+#define CHERI_PERM_R_DATA									\
+	(~(CHERI_PERM_WRITE | CHERI_PERM_EXECUTE | CHERI_PERM_SYSTEM_REGS))
+
+/* Capability permissions for Write Only Data (+ read) */
+#define CHERI_PERM_W_DATA                   (~(CHERI_PERM_EXECUTE | CHERI_PERM_SYSTEM_REGS))
+
+#endif /* (CONFIG_64BIT) */
+
+#else
+/* ! __riscv_zcheripurecap */
 /* CHERI-ISA V8.0 */
 /* PERMISSIONS */
 /*
