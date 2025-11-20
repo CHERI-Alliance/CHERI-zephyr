@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -43,8 +44,22 @@ void test_slab_free_all_blocks(void **p);
 K_SEM_DEFINE(SEM_HELPERDONE, 0, 1);
 K_SEM_DEFINE(SEM_REGRESSDONE, 0, 1);
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* for CHERI purecap, memory slabs need CHERI alignment.
+ * To ensure that each memory block is similarly aligned
+ * to this boundary, slab_block_size must also be a multiple
+ * of slab_align.
+ */
+#define CHERI_ALIGN 16 /* work for 64/32 bit */
+#define CHERI_BLK_SIZE CHERI_ALIGN*64
+
+K_MEM_SLAB_DEFINE(map_lgblks, CHERI_BLK_SIZE, NUMBLOCKS, CHERI_ALIGN);
+
+#else
+
 K_MEM_SLAB_DEFINE(map_lgblks, 1024, NUMBLOCKS, 4);
 
+#endif /*__CHERI_PURE_CAPABILITY__*/
 
 /**
  *

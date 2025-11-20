@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021 Intel Corporation
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,10 +8,27 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* for CHERI purecap, memory slabs need CHERI alignment.
+ * To ensure that each memory block is similarly aligned
+ * to this boundary, slab_block_size must also be a multiple
+ * of slab_align.
+ */
+#define CHERI_ALIGN 16 /* work for 64/32 bit */
+
+#define BLK_SZ     CHERI_ALIGN*8
+#define NUM_BLOCKS 8
+
+K_MEM_SLAB_DEFINE(kmslab, BLK_SZ, NUM_BLOCKS, CHERI_ALIGN);
+
+#else
+
 #define BLK_SZ     64
 #define NUM_BLOCKS 8
 
 K_MEM_SLAB_DEFINE(kmslab, BLK_SZ, NUM_BLOCKS, 4);
+
+#endif /*__CHERI_PURE_CAPABILITY__*/
 
 ZTEST(lib_mem_slab_stats_test, test_mem_slab_stats_invalid_params)
 {

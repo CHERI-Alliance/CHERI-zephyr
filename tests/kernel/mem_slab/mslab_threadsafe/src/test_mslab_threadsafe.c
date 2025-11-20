@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,6 +8,41 @@
 #include <zephyr/ztest.h>
 #include <zephyr/sys/atomic.h>
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* for CHERI purecap, memory slabs need larger block sizes and alignment.
+ * The static allocation K_MEM_SLAB_DEFINE macro does not include any size
+ * or alignment checks even though it specifies the following:
+ *
+ * "The memory slab's buffer contains @a slab_num_blocks memory blocks
+ * that are @a slab_block_size bytes long. The buffer is aligned to a
+ * @a slab_align -byte boundary. To ensure that each memory block is similarly
+ * aligned to this boundary, @a slab_block_size must also be a multiple of
+ * @a slab_align."
+ *
+ * For the dynamic allocation k_mem_slab_init the buffer alignment and size
+ * also needs specifying.
+ *
+ * The tests here specify the size and alignment so this needs to be adjusted
+ * correctly for CHERI.
+ *
+ */
+
+#define CHERI_ALIGN 16 /* work for 64/32 bit */
+
+#define LOOP 10
+/* stack alignment is always 16 bytes for RISCV,
+ * include/zephyr/arch/riscv/arch.h:#define ARCH_STACK_PTR_ALIGN 16
+ */
+#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define THREAD_NUM 4
+#define SLAB_NUM 2
+#define TIMEOUT K_MSEC(200)
+#define BLK_NUM 3
+#define BLK_ALIGN CHERI_ALIGN /* multiple of global alignment */
+#define BLK_SIZE1 BLK_ALIGN * 2 /* multiple of slab alignment (BLK_ALIGN) */
+#define BLK_SIZE2 BLK_ALIGN /* multiple of slab alignment (BLK_ALIGN) */
+
+#else
 #define LOOP 10
 #define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
 #define THREAD_NUM 4
@@ -16,6 +52,7 @@
 #define BLK_ALIGN 8
 #define BLK_SIZE1 16
 #define BLK_SIZE2 8
+#endif
 
 /* Blocks per slab.  Note this number carefully, because if it is
  * smaller than this the test can deadlock.  There are 4 threads
