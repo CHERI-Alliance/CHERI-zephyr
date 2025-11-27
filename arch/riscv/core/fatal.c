@@ -335,10 +335,18 @@ static bool bad_stack_pointer(struct arch_esf *esf)
 #endif /* CONFIG_USERSPACE */
 
 #if CONFIG_MULTITHREADING
+#ifdef __CHERI_PURE_CAPABILITY__
+	if (sp >= _current->stack_info.start - K_KERNEL_STACK_RESERVED &&
+	    sp < _current->stack_info.start - K_KERNEL_STACK_RESERVED +
+	    (size_t)Z_RISCV_STACK_GUARD_SIZE) {
+		return true;
+	}
+#else
 	if (sp >= _current->stack_info.start - K_KERNEL_STACK_RESERVED &&
 	    sp < _current->stack_info.start - K_KERNEL_STACK_RESERVED + Z_RISCV_STACK_GUARD_SIZE) {
 		return true;
 	}
+#endif
 #else
 	uintptr_t isr_stack = (uintptr_t)z_interrupt_stacks;
 	uintptr_t main_stack = (uintptr_t)z_main_stack;

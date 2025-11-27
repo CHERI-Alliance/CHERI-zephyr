@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 2017 Intel Corporation
+ * Copyright (c) 2023 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modified to support CHERI 2023, University of Birmingham
  */
 
 /**
@@ -106,30 +106,22 @@ struct _thread_arch {
 	 */
 #ifdef __CHERI_PURE_CAPABILITY__
 	uintptr_t priv_stack_start;
-	uintptr_t u_mode_pmpaddr_regs[CONFIG_PMP_SLOTS];
-	uintptr_t u_mode_pmpcfg_regs[CONFIG_PMP_SLOTS / sizeof(unsigned long)];
 #else
 	unsigned long priv_stack_start;
+#endif
 	unsigned long u_mode_pmpaddr_regs[CONFIG_PMP_SLOTS];
 	unsigned long u_mode_pmpcfg_regs[CONFIG_PMP_SLOTS / sizeof(unsigned long)];
-#endif
+
 	unsigned int u_mode_pmp_domain_offset;
 	unsigned int u_mode_pmp_end_index;
 	unsigned int u_mode_pmp_update_nr;
 #endif
 #ifdef CONFIG_PMP_STACK_GUARD
 	unsigned int m_mode_pmp_end_index;
-	/*
-	 * An address is the size of a pointer which is bigger
-	 * than an unsigned long for CHERI.
-	 */
-#ifdef __CHERI_PURE_CAPABILITY__
-	uintptr_t m_mode_pmpaddr_regs[PMP_M_MODE_SLOTS];
-	uintptr_t m_mode_pmpcfg_regs[PMP_M_MODE_SLOTS / sizeof(unsigned long)];
-#else
+
 	unsigned long m_mode_pmpaddr_regs[PMP_M_MODE_SLOTS];
 	unsigned long m_mode_pmpcfg_regs[PMP_M_MODE_SLOTS / sizeof(unsigned long)];
-#endif
+
 #endif
 };
 typedef struct _thread_arch _thread_arch_t;
