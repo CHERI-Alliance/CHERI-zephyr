@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, Wind River Systems, Inc.
+ * Copyright (c) 2025 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -5436,6 +5437,20 @@ struct k_mem_slab {
  * @param slab_num_blocks Number memory blocks.
  * @param slab_align Alignment of the memory slab's buffer (power of 2).
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Add assert statements to check for CHERI alignment*/
+#define K_MEM_SLAB_DEFINE(name, slab_block_size, slab_num_blocks, slab_align) \
+	_Static_assert(((slab_block_size) % (slab_align)) == 0, \
+		"slab_block_size must be a multiple of slab alignment"); \
+	_Static_assert(((slab_align) % CONFIG_LINKER_ITERABLE_SUBALIGN) == 0, \
+		"memory slab alignment must be a multiple of CHERI alignment"); \
+	char __noinit_named(k_mem_slab_buf_##name) \
+	   __aligned(WB_UP(slab_align)) \
+	   _k_mem_slab_buf_##name[(slab_num_blocks) * WB_UP(slab_block_size)]; \
+	STRUCT_SECTION_ITERABLE(k_mem_slab, name) = \
+		Z_MEM_SLAB_INITIALIZER(name, _k_mem_slab_buf_##name, \
+					WB_UP(slab_block_size), slab_num_blocks)
+#else
 #define K_MEM_SLAB_DEFINE(name, slab_block_size, slab_num_blocks, slab_align) \
 	char __noinit_named(k_mem_slab_buf_##name) \
 	   __aligned(WB_UP(slab_align)) \
@@ -5443,7 +5458,7 @@ struct k_mem_slab {
 	STRUCT_SECTION_ITERABLE(k_mem_slab, name) = \
 		Z_MEM_SLAB_INITIALIZER(name, _k_mem_slab_buf_##name, \
 					WB_UP(slab_block_size), slab_num_blocks)
-
+#endif
 /**
  * @brief Statically define and initialize a memory slab in a private (static) scope.
  *
@@ -5458,6 +5473,20 @@ struct k_mem_slab {
  * @param slab_num_blocks Number memory blocks.
  * @param slab_align Alignment of the memory slab's buffer (power of 2).
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Add assert statements to check for CHERI alignment*/
+#define K_MEM_SLAB_DEFINE_STATIC(name, slab_block_size, slab_num_blocks, slab_align) \
+	_Static_assert(((slab_block_size) % (slab_align)) == 0, \
+		"slab_block_size must be a multiple of slab alignment"); \
+	_Static_assert(((slab_align) % CONFIG_LINKER_ITERABLE_SUBALIGN) == 0, \
+		"memory slab alignment must be a multiple of CHERI alignment"); \
+	static char __noinit_named(k_mem_slab_buf_##name) \
+	   __aligned(WB_UP(slab_align)) \
+	   _k_mem_slab_buf_##name[(slab_num_blocks) * WB_UP(slab_block_size)]; \
+	static STRUCT_SECTION_ITERABLE(k_mem_slab, name) = \
+		Z_MEM_SLAB_INITIALIZER(name, _k_mem_slab_buf_##name, \
+					WB_UP(slab_block_size), slab_num_blocks)
+#else
 #define K_MEM_SLAB_DEFINE_STATIC(name, slab_block_size, slab_num_blocks, slab_align) \
 	static char __noinit_named(k_mem_slab_buf_##name) \
 	   __aligned(WB_UP(slab_align)) \
@@ -5465,6 +5494,7 @@ struct k_mem_slab {
 	static STRUCT_SECTION_ITERABLE(k_mem_slab, name) = \
 		Z_MEM_SLAB_INITIALIZER(name, _k_mem_slab_buf_##name, \
 					WB_UP(slab_block_size), slab_num_blocks)
+#endif
 
 /**
  * @brief Initialize a memory slab.
