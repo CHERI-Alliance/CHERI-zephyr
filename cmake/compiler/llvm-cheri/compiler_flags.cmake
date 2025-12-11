@@ -114,6 +114,9 @@ check_set_compiler_property(PROPERTY warning_extended
                             -Wno-gnu
                             # comparison of unsigned expression < 0 is always false
                             -Wno-tautological-compare
+                            # ignore some llvm-cheri warnings
+                            -Wno-deprecated-register
+                            -Wno-unused-command-line-argument
 )
 
 set_compiler_property(PROPERTY warning_error_coding_guideline
