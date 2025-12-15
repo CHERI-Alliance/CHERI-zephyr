@@ -1133,6 +1133,7 @@ flagged.
                                                     # Kconfig which is sourced based on Zephyr
                                                     # toolchain variant and therefore not visible
                                                     # to compliance.
+        "TOOLCHAIN_LLVM_CHERI", #defined in llvm-cheri toolchain, allow llvm cheri specific gating
         "TYPE_BOOLEAN",
         "USB_CONSOLE",
         "USE_STDC_",

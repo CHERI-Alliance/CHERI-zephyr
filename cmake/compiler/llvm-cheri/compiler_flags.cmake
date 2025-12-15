@@ -126,7 +126,5 @@ set_compiler_property(PROPERTY warning_error_coding_guideline
                       -Woverride-init
 )
 
-set_compiler_property(PROPERTY no_global_merge "-mno-global-merge")
-
 message(STATUS, "llvm-cheri toolchain....compiler compiler_flags.cmake done...")
 message(STATUS, "LINKER: ${LINKER}")

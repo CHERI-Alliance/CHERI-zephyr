@@ -28,8 +28,13 @@
  */
 static inline size_t z_tls_data_size(void)
 {
+	#ifdef CONFIG_TOOLCHAIN_LLVM_CHERI
+	return (size_t)(uintptr_t)(__tdata_end - __tdata_start) +
+		(size_t)(uintptr_t)(__tbss_end - __tbss_start);
+	#else
 	return (size_t)(uintptr_t)__tdata_size +
 	       (size_t)(uintptr_t)__tbss_size;
+	#endif /* CONFIG_TOOLCHAIN_LLVM_CHERI */
 }
 
 /**
@@ -42,12 +47,21 @@ static inline size_t z_tls_data_size(void)
  */
 static inline void z_tls_copy(char *dest)
 {
+	#ifdef CONFIG_TOOLCHAIN_LLVM_CHERI
+	/* Copy initialized data (tdata) */
+	memcpy(dest, __tdata_start, (size_t)(uintptr_t)(__tdata_end - __tdata_start));
+
+	/* Clear BSS data (tbss) */
+	dest += (size_t)(uintptr_t)(__tdata_end - __tdata_start);
+	memset(dest, 0, (size_t)(uintptr_t)(__tbss_end - __tbss_start));
+	#else
 	/* Copy initialized data (tdata) */
 	memcpy(dest, __tdata_start, (size_t)(uintptr_t)__tdata_size);
 
 	/* Clear BSS data (tbss) */
 	dest += (size_t)(uintptr_t)__tdata_size;
 	memset(dest, 0, (size_t)(uintptr_t)__tbss_size);
+	#endif /* CONFIG_TOOLCHAIN_LLVM_CHERI */
 }
 
 #endif /* ZEPHYR_KERNEL_INCLUDE_KERNEL_TLS_H_ */

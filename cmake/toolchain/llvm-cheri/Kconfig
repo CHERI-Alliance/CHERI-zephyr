@@ -72,3 +72,11 @@ config CHERI_MEM_SLAB_NUM_BLKS_REDUCE
 	  When building for CHERI this is used to select the option of reducing the
 	  number of available blocks in a slab to maintin exact bounds when they
 	  don't fit in the slab after CHERI rounding
+
+config TOOLCHAIN_LLVM_CHERI
+	depends on RISCV
+	bool "use LLVM_CHERI toolchain specific modifications"
+	default y
+	help
+	  When building with CHERI LLVM toolchains this is used to include
+	  toolchain specific modifications for both CHERI and NON-CHERI builds.
