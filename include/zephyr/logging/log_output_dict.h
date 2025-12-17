@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018 Nordic Semiconductor ASA
  * Copyright (c) 2021 Intel Corporation
+ * Copyright (c) 2025 Modified to support CHERI, University of Birmingham
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -36,7 +37,12 @@ struct log_dict_output_normal_msg_hdr_t {
 	uint32_t data_len:16;
 	uintptr_t source;
 	log_timestamp_t timestamp;
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*align to 16 bytes for 64 bit arch, 8 bytes for 32 bit arch */
+} __aligned(CONFIG_LINKER_ITERABLE_SUBALIGN);
+#else
 } __packed;
+#endif
 
 /**
  * Output for one dictionary based log message about
