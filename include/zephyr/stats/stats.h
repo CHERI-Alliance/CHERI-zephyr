@@ -1,5 +1,6 @@
 /*
  * Copyright Runtime.io 2018. All rights reserved.
+ * Copyright (c) 2025 Modified to support CHERI, University of Birmingham
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -61,7 +62,12 @@ extern "C" {
 struct stats_name_map {
 	uint16_t snm_off;
 	const char *snm_name;
+#ifdef __CHERI_PURE_CAPABILITY__
+/*align to 16 bytes for 64 bit arch, 8 bytes for 32 bit arch */
+} __aligned(CONFIG_LINKER_ITERABLE_SUBALIGN);
+#else
 } __attribute__((packed));
+#endif
 
 struct stats_hdr {
 	const char *s_name;
