@@ -31,7 +31,9 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/arch/riscv/csr.h>
 #include <zephyr/arch/riscv/exception.h>
-
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <zephyr/arch/riscv/cheri/cheri_macros.h>
+#endif
 /* stacks, for RISCV architecture stack should be 16byte-aligned */
 #define ARCH_STACK_PTR_ALIGN 16
 

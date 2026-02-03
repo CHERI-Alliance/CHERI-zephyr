@@ -492,4 +492,21 @@ config RISCV_ISA_ZCHERIHYBRID_ABI
 	default n
 	help
 	  use with capabilities
+
+config CHERI_MEM_SLAB_RELAX_BLK_BOUNDS
+	bool "relax bounds overlap for internal blocks of a slab"
+	depends on CHERI
+	default n
+	help
+	  When building for CHERI this is used to select allowing bounds overlap
+	  for internal slab blocks so the number of blocks still fit in the slab size
+
+config CHERI_MEM_SLAB_NUM_BLKS_REDUCE
+	bool "reduce the number of available blocks if they can't fit in the slab with exact bounds"
+	depends on CHERI
+	default n
+	help
+	  When building for CHERI this is used to select the option of reducing the
+	  number of available blocks in a slab to maintin exact bounds when they
+	  don't fit in the slab after CHERI rounding
 endmenu

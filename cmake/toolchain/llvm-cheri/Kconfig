@@ -57,3 +57,18 @@ config RISCV_ISA_ZCHERIPURECAP_ABI
 	help
 	  When building for CHERI this is used to select the CHERI RISC-V 0.9.5
 	  spec otherwise the default cambridge v8.0 spec is used
+
+config CHERI_MEM_SLAB_RELAX_BLK_BOUNDS
+	bool "relax bounds overlap for internal blocks of a slab"
+	default n
+	help
+	  When building for CHERI this is used to select allowing bounds overlap
+	  for internal slab blocks so the number of blocks still fit in the slab size
+
+config CHERI_MEM_SLAB_NUM_BLKS_REDUCE
+	bool "reduce the number of available blocks if they can't fit in the slab with exact bounds"
+	default n
+	help
+	  When building for CHERI this is used to select the option of reducing the
+	  number of available blocks in a slab to maintin exact bounds when they
+	  don't fit in the slab after CHERI rounding

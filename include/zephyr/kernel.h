@@ -5438,18 +5438,90 @@ struct k_mem_slab {
  * @param slab_align Alignment of the memory slab's buffer (power of 2).
  */
 #ifdef __CHERI_PURE_CAPABILITY__
-/* Add assert statements to check for CHERI alignment*/
+/*
+ * Block representable length:
+ * Round a block size up to its CHERI-required alignment
+ *    If the length is < minimium for exact bounds then
+ *    WB_UP(slab_align) is used for the alignment,
+ *    otherwise alignment is calculated and then the
+ *    representable length is calculated.
+ *
+ * 2. rounds up the length to the alignment.
+ */
+#define CHERI_BLK_REP_LEN(slab_block_size, slab_align) \
+	CHERI_ROUND_UP_TO_REP_LEN(WB_UP(slab_block_size), WB_UP(slab_align))
+
+/*
+ * Block alignment:
+ * Caluclate the CHERI alignment
+ *    If the length is < minimium for exact bounds then
+ *    WB_UP(slab_align) is used for the alignment,
+ *    otherwise alignment is calculated.
+ */
+#define CHERI_BLK_REP_ALIGN(slab_block_size, slab_align) \
+	CHERI_ALIGN_FOR_LEN(WB_UP(slab_block_size), WB_UP(slab_align))
+
+/*
+ * Slab representable length:
+ * Round a slab size up to its CHERI-required length
+ * 1. first caluclate the representable length of a block
+ * 2. then calculate the representable length of the whole slab
+ *    to make sure all the extended length blocks will fit.
+ *    If the length is < minimium for exact bounds then
+ *    WB_UP(slab_align) is used, else alignment is calculated.
+ */
+#define CHERI_SLAB_REP_LEN(slab_num_blocks, slab_block_size, slab_align) \
+	CHERI_ROUND_UP_TO_REP_LEN(slab_num_blocks *			\
+	CHERI_BLK_REP_LEN(slab_block_size, slab_align), WB_UP(slab_align))
+
+/*
+ * Slab alignment:
+ * 1. first caluclate the representable length of a block
+ * 2. then calculate the alignment of the whole slab
+ *    to make sure all the extended length blocks will fit.
+ *    If the length is < minimium for exact bounds then
+ *    WB_UP(slab_align) is used, else alignment is calculated.
+ */
+#define CHERI_SLAB_REP_ALIGN(slab_num_blocks, slab_block_size, slab_align) \
+	CHERI_ALIGN_FOR_LEN(slab_num_blocks *				\
+	CHERI_BLK_REP_LEN(slab_block_size, slab_align), WB_UP(slab_align))
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
+/*
+ * CHERI-aware slab: computes alignment and rounds up block length and slab length
+ * Each block must respect CHERI alignment individually (capability bounds and alignment rules).
+ * Then the slab as a whole must be aligned to the required CHERI alignment.
+ * if the rquested size is less than the max CHERI length for exact bounds no extra rounding
+ * or alignment is needed.
+ * The minimum CHERI alignment e.g 8/16 is guaranteed through WB_UP(slab_align)
+ *
+ * Note: there is currently a limitation placed on the macros for alignment and rounding of
+ * memory lengths up to CHERI_MACRO_MEM_MAX_LEN (16 MiB) because of the impact on
+ * compile/build time.
+ * Future development may improve the CHERI macros.
+ *
+ */
+#ifdef __CHERI_PURE_CAPABILITY__
 #define K_MEM_SLAB_DEFINE(name, slab_block_size, slab_num_blocks, slab_align) \
-	_Static_assert(((slab_block_size) % (slab_align)) == 0, \
-		"slab_block_size must be a multiple of slab alignment"); \
-	_Static_assert(((slab_align) % CONFIG_LINKER_ITERABLE_SUBALIGN) == 0, \
-		"memory slab alignment must be a multiple of CHERI alignment"); \
+	_Static_assert(slab_block_size*slab_num_blocks < CHERI_MACRO_MEM_MAX_LEN, \
+		"CHERI slab size must be smaller than the macros allow"); \
+	/* Define the backing buffer aligned to CHERI needs: */ \
 	char __noinit_named(k_mem_slab_buf_##name) \
-	   __aligned(WB_UP(slab_align)) \
-	   _k_mem_slab_buf_##name[(slab_num_blocks) * WB_UP(slab_block_size)]; \
+	/* align depends on req. slab size (slab_num_blocks * CHERI_BLK_REP_LEN) and */	\
+	/* min. alignment WB_UP(slab_align) */	\
+	__aligned(CHERI_ALIGN_FOR_LEN((slab_num_blocks) * \
+		CHERI_BLK_REP_LEN(slab_block_size, slab_align), \
+			WB_UP(slab_align))) \
+	/* create the backing buffer for slab size which is derived from size of */ \
+	/* (slab_num_blocks * CHERI_BLK_REP_LEN) and minimum alignment WB_UP(slab_align)*/ \
+	_k_mem_slab_buf_##name[CHERI_SLAB_REP_LEN( \
+		slab_num_blocks, slab_block_size, slab_align)];	\
+	/*  sets up the metadata for the slab: which needs blk_rep_len and slab_num_blocks */ \
 	STRUCT_SECTION_ITERABLE(k_mem_slab, name) = \
 		Z_MEM_SLAB_INITIALIZER(name, _k_mem_slab_buf_##name, \
-					WB_UP(slab_block_size), slab_num_blocks)
+			CHERI_BLK_REP_LEN(slab_block_size, slab_align), \
+			slab_num_blocks)
 #else
 #define K_MEM_SLAB_DEFINE(name, slab_block_size, slab_num_blocks, slab_align) \
 	char __noinit_named(k_mem_slab_buf_##name) \
@@ -5474,18 +5546,26 @@ struct k_mem_slab {
  * @param slab_align Alignment of the memory slab's buffer (power of 2).
  */
 #ifdef __CHERI_PURE_CAPABILITY__
-/* Add assert statements to check for CHERI alignment*/
 #define K_MEM_SLAB_DEFINE_STATIC(name, slab_block_size, slab_num_blocks, slab_align) \
-	_Static_assert(((slab_block_size) % (slab_align)) == 0, \
-		"slab_block_size must be a multiple of slab alignment"); \
-	_Static_assert(((slab_align) % CONFIG_LINKER_ITERABLE_SUBALIGN) == 0, \
-		"memory slab alignment must be a multiple of CHERI alignment"); \
+	_Static_assert(slab_block_size*slab_num_blocks < CHERI_MACRO_MEM_MAX_LEN, \
+		"CHERI slab size must be smaller than the macros allow"); \
+	/* Define the backing buffer aligned to CHERI needs: */ \
 	static char __noinit_named(k_mem_slab_buf_##name) \
-	   __aligned(WB_UP(slab_align)) \
-	   _k_mem_slab_buf_##name[(slab_num_blocks) * WB_UP(slab_block_size)]; \
+	/* align depends on req. slab size (slab_num_blocks * CHERI_BLK_REP_LEN) and */ \
+	/* min. alignment WB_UP(slab_align) */ \
+	__aligned(CHERI_ALIGN_FOR_LEN((slab_num_blocks) * \
+		CHERI_BLK_REP_LEN(slab_block_size, slab_align), \
+			WB_UP(slab_align))) \
+	/* create the backing buffer for slab size which is derived from size of */ \
+	/* (slab_num_blocks * CHERI_BLK_REP_LEN) and minimum alignment WB_UP(slab_align)*/ \
+	_k_mem_slab_buf_##name[CHERI_SLAB_REP_LEN( \
+		slab_num_blocks, slab_block_size, slab_align)]; \
+	/*  sets up the metadata for the slab: which needs blk_rep_len and slab_num_blocks */ \
 	static STRUCT_SECTION_ITERABLE(k_mem_slab, name) = \
 		Z_MEM_SLAB_INITIALIZER(name, _k_mem_slab_buf_##name, \
-					WB_UP(slab_block_size), slab_num_blocks)
+			CHERI_BLK_REP_LEN(slab_block_size, slab_align), \
+			slab_num_blocks)
+
 #else
 #define K_MEM_SLAB_DEFINE_STATIC(name, slab_block_size, slab_num_blocks, slab_align) \
 	static char __noinit_named(k_mem_slab_buf_##name) \

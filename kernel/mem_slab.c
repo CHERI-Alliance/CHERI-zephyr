@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016 Wind River Systems, Inc.
+ * Copyright (c) 2026 University of Birmingham, support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -114,12 +115,46 @@ static int create_free_list(struct k_mem_slab *slab)
 	slab->free_list = NULL;
 	p = slab->buffer + slab->info.block_size * (slab->info.num_blocks - 1);
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * For CHERI, tighten the bounds of a single block to info.block_size
+	 * we use exact bounds here because we should have already aligned and
+	 * rounded up the block size to a CHERI representable length
+	 * during setup / static allocation. This means it will trap if
+	 * it can't set the bounds exactly.
+	 */
+	uintptr_t p_addr;
+	char *blk;
+
+	while (p >= slab->buffer) {
+		*(char **)p = slab->free_list;
+
+		/* p points to highest block first - get this address */
+		p_addr = __builtin_cheri_address_get(p);
+		/* set a new cap with this as its base */
+		blk = __builtin_cheri_address_set(p, p_addr);
+		/* tighten the bounds to the length of a block only */
+#ifdef CONFIG_CHERI_MEM_SLAB_RELAX_BLK_BOUNDS
+		/* relax internal bounds of a blk */
+		/* Use with caution! - this may create overlap of bounds between blocks */
+		blk = __builtin_cheri_bounds_set(blk, (size_t)slab->info.block_size);
+#else
+		/* set strict bounds - a trap will occur if the bounds can't be set exactly */
+		blk = __builtin_cheri_bounds_set_exact(blk, (size_t)slab->info.block_size);
+#endif	/* CONFIG_CHERI_MEM_SLAB_RELAX_BLK_BOUNDS */
+		/* store cap in the free list */
+		slab->free_list = blk;
+		p -= slab->info.block_size;
+	}
+	return 0;
+#else
 	while (p >= slab->buffer) {
 		*(char **)p = slab->free_list;
 		slab->free_list = p;
 		p -= slab->info.block_size;
 	}
 	return 0;
+#endif
 }
 
 /**
@@ -173,11 +208,62 @@ int k_mem_slab_init(struct k_mem_slab *slab, void *buffer,
 {
 	int rc;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI the block size needs rounding to its representable length for exact bounds */
+	size_t block_size_rep;
+#ifdef CONFIG_CHERI_MEM_SLAB_RELAX_BLK_BOUNDS
+	/*
+	 * relax internal bounds of a blk - this allows overlap of bounds between blocks
+	 * to maintain block size and the number of blocks asked for. This issue is observed
+	 * when requested block sizes require rounding upwards to CHERI representable lengths
+	 * and then do not fit within the slab size so an error is returned.
+	 * Use with caution! - this may create overlap of bounds between blocks
+	 */
+	block_size_rep = block_size;
+#else
+	/* round block size to its representable length for exact bounds */
+	block_size_rep = __builtin_cheri_round_representable_length(block_size);
+#endif /* CONFIG_CHERI_MEM_SLAB_RELAX_BLK_BOUNDS */
+
+	/*
+	 * check the number of blocks can fit into the slab size created after
+	 * CHERI block rounding. Here we can either return an error if it
+	 * doesn't fit forcing the caller to supply block/slab sizes that work,
+	 * or we can reduce the number of blocks available.
+	 */
+	uint32_t num_blocks_int = num_blocks;
+	size_t slab_len = __builtin_cheri_length_get(buffer);
+#ifdef CONFIG_CHERI_MEM_SLAB_NUM_BLKS_REDUCE
+	/*
+	 * If we want to maintain exact CHERI bounds per block after representable rounding
+	 * and not want to return an error we can reduce the number of available blocks
+	 * to fit within the bounds of the slab. The caller will need to check the number
+	 * available and not assume the number available is what was requested.
+	 */
+	while (slab_len < block_size_rep*num_blocks_int) {
+		num_blocks_int = num_blocks_int-1;
+	}
+#else
+	/*
+	 * otherwise if the number of blocks do not fit in the slab size after CHERI rounding
+	 * return an error
+	 */
+	CHECKIF(slab_len < block_size_rep*num_blocks_int) {
+		return -EINVAL;
+	}
+#endif /* CONFIG_CHERI_MEM_SLAB_NUM_BLKS_REDUCE */
+	slab->info.num_blocks = num_blocks_int;
+	slab->info.block_size = block_size_rep;
+	slab->buffer = buffer;
+	slab->info.num_used = 0U;
+	slab->lock = (struct k_spinlock) {};
+#else
 	slab->info.num_blocks = num_blocks;
 	slab->info.block_size = block_size;
 	slab->buffer = buffer;
 	slab->info.num_used = 0U;
 	slab->lock = (struct k_spinlock) {};
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 #ifdef CONFIG_MEM_SLAB_TRACE_MAX_UTILIZATION
 	slab->info.max_used = 0U;

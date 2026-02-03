@@ -1,0 +1,63 @@
+tests:
+  cheri.kernel.memory_slabs_bounds:
+    tags:
+      - cheri
+      - kernel
+      - memory_slabs
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+  cheri.kernel.memory_slabs_bounds.relax:
+    tags:
+      - cheri
+      - kernel
+      - memory_slabs
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+    extra_configs:
+      - CONFIG_CHERI_MEM_SLAB_RELAX_BLK_BOUNDS=y
+  cheri.kernel.memory_slabs_bounds.reduced:
+    tags:
+      - cheri
+      - kernel
+      - memory_slabs
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+    extra_configs:
+      - CONFIG_CHERI_MEM_SLAB_NUM_BLKS_REDUCE=y
