@@ -1,0 +1,52 @@
+name: CHERI-Zephyr Twister Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-twister-tests:
+    name: Twister Tests (${{ matrix.flavour }})
+    runs-on: the-capable-hub-aws-ci-arm64
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "capablehub/cheri-zephyr:v0.2.0-riscv64c-rvy"
+            flavour: "rvy"
+            suffix: "zcheripurecap"
+          - image: "capablehub/cheri-zephyr:v0.2.0-riscv64c-isav9"
+            flavour: "isav9"
+            suffix: "purecap"
+            
+    container:
+      image: ${{ matrix.image }}
+      # GitHub Actions get odd permissions errors without this
+      options: --user root
+      
+    steps:
+      - name: Run tests
+        run: |
+          cd /home/builder/zephyr
+          . /home/builder/.venv/bin/activate
+
+          export CCACHE_DIR=/tmp/ccache
+          mkdir -p $CCACHE_DIR
+          
+          python3 scripts/twister \
+            -p qemu_riscv64cheri -p qemu_riscv64cheri_smp \
+            -p qemu_riscv64cheri_${{ matrix.suffix }} \
+            -p qemu_riscv64cheri_smp_${{ matrix.suffix }} \
+            -T samples/hello_world \
+            -T samples/synchronization \
+            -T samples/philosophers \
+            -T samples/basic/sys_heap \
+            --outdir twister-out
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twister-results-${{ matrix.flavour }}
+          path: |
+            /home/builder/zephyr/twister-out/twister.json
+            /home/builder/zephyr/twister-out/twister.xml
