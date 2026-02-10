@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, added support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -125,6 +126,29 @@ struct sys_multi_mem_blocks {
  * @param buf      Backing buffer of type uint8_t.
  * @param mbmod    Modifier to the memory block struct
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/*
+ * Add assert check that block size is power of two.
+ * This is crucial for allowing the mem_blocks api to not
+ * require extra CHERI rounding of block sizes.
+ * The external backing buffer will be correctly CHERI
+ * aligned by the compiler.
+ */
+#define _SYS_MEM_BLOCKS_DEFINE_WITH_EXT_BUF(name, blk_sz, num_blks, buf, mbmod) \
+	_Static_assert(IS_POWER_OF_TWO(blk_sz), \
+		"mem_block block size must be power of two");		\
+	_SYS_BITARRAY_DEFINE(_sys_mem_blocks_bitmap_##name,		\
+			     num_blks, mbmod);				\
+	mbmod struct sys_mem_blocks name = {                            \
+		.info = {num_blks, ilog2(blk_sz)},                      \
+		.buffer = buf,						\
+		.bitmap = &_sys_mem_blocks_bitmap_##name,		\
+	};                                                              \
+	STRUCT_SECTION_ITERABLE_ALTERNATE(sys_mem_blocks_ptr,           \
+					  sys_mem_blocks *,             \
+					  __##name##_ptr) = &name;      \
+	LINKER_KEEP(__##name##_ptr);
+#else
 #define _SYS_MEM_BLOCKS_DEFINE_WITH_EXT_BUF(name, blk_sz, num_blks, buf, mbmod) \
 	_SYS_BITARRAY_DEFINE(_sys_mem_blocks_bitmap_##name,		\
 			     num_blks, mbmod);				\
@@ -137,6 +161,7 @@ struct sys_multi_mem_blocks {
 					  sys_mem_blocks *,             \
 					  __##name##_ptr) = &name;      \
 	LINKER_KEEP(__##name##_ptr);
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  * @brief Create a memory block object with a new backing buffer.
@@ -147,6 +172,32 @@ struct sys_multi_mem_blocks {
  * @param balign   Alignment of the memory block buffer (power of 2).
  * @param mbmod    Modifier to the memory block struct
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/*
+ * Block size always a power of two so doesn't need CHERI rounding.
+ * Add assert check that block size is power of two.
+ * We just need to ensure CHERI alignment for the whole memory to
+ * guarantee exact bounds and alignment for total blocks.
+ * The minimum CHERI alignment e.g 8/16 is guaranteed through WB_UP(balign)
+ *
+ * Note: there is currently a limitation placed on the macros for alignment
+ * and rounding of memory lengths up to CHERI_MACRO_MEM_MAX_LEN (16 MiB)
+ * because of the impact on compile/build time.
+ * Future development may improve the CHERI macros.
+ */
+#define _SYS_MEM_BLOCKS_DEFINE(name, blk_sz, num_blks, balign, mbmod)	\
+	_Static_assert(WB_UP(blk_sz)*num_blks < CHERI_MACRO_MEM_MAX_LEN, \
+		"CHERI mem_block size must be smaller than the macros allow"); \
+	_Static_assert(IS_POWER_OF_TWO(blk_sz), \
+		"mem_block block size must be power of two");		\
+	mbmod uint8_t __noinit_named(sys_mem_blocks_buf_##name)		\
+		__aligned(CHERI_ALIGN_FOR_LEN((num_blks) * \
+			WB_UP(blk_sz), WB_UP(balign))) \
+		_sys_mem_blocks_buf_##name[num_blks * WB_UP(blk_sz)];	\
+	_SYS_MEM_BLOCKS_DEFINE_WITH_EXT_BUF(name, blk_sz, num_blks,	\
+					   _sys_mem_blocks_buf_##name,	\
+					   mbmod);
+#else
 #define _SYS_MEM_BLOCKS_DEFINE(name, blk_sz, num_blks, balign, mbmod)	\
 	mbmod uint8_t __noinit_named(sys_mem_blocks_buf_##name)		\
 		__aligned(WB_UP(balign))				\
@@ -154,7 +205,7 @@ struct sys_multi_mem_blocks {
 	_SYS_MEM_BLOCKS_DEFINE_WITH_EXT_BUF(name, blk_sz, num_blks,	\
 					   _sys_mem_blocks_buf_##name,	\
 					   mbmod);
-
+#endif
 /**
  * INTERNAL_HIDDEN @endcond
  */

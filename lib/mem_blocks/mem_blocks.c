@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, added support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -46,6 +47,20 @@ static void *alloc_blocks(sys_mem_blocks_t *mem_block, size_t num_blocks)
 	/* Calculate the start address of the newly allocated block */
 
 	blk = mem_block->buffer + (offset << mem_block->info.blk_sz_shift);
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * since block sizes are always a power of two they should
+	 * always be representable by CHERI. As long as the
+	 * backing buffer is aligned, we don't need to
+	 * round the length, we just need to set the bounds.
+	 * Here tighten bounds to exactly one block.
+	 */
+	size_t block_len = (size_t)1 << mem_block->info.blk_sz_shift;
+
+	blk = __builtin_cheri_bounds_set_exact(blk, block_len);
+
+#endif
 
 	return blk;
 }

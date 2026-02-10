@@ -1,0 +1,19 @@
+tests:
+  cheri.libraries.mem_blocks:
+    tags:
+      - cheri
+      - heap
+      - mem_blocks
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
