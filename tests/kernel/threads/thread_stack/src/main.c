@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, added support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,6 +22,24 @@ K_THREAD_STACK_DEFINE(user_stack, STEST_STACKSIZE);
 K_THREAD_STACK_ARRAY_DEFINE(user_stack_array, NUM_STACKS, STEST_STACKSIZE);
 K_KERNEL_STACK_DEFINE(kern_stack, STEST_STACKSIZE);
 K_KERNEL_STACK_ARRAY_DEFINE(kern_stack_array, NUM_STACKS, STEST_STACKSIZE);
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <zephyr/ztest_error_hook.h>   /* ztest_set_fault_valid() */
+static inline void print_cheri(const char *label, void *cap)
+{
+	uintptr_t cap_addr = __builtin_cheri_address_get(cap);
+	uintptr_t cap_base = __builtin_cheri_base_get(cap);
+	size_t cap_len  = __builtin_cheri_length_get(cap);
+	size_t tag = __builtin_cheri_tag_get(cap);
+
+	TC_PRINT("%s", label);
+	TC_PRINT("CHERI addr:   0x%lx\n", (unsigned long)cap_addr);
+	TC_PRINT("CHERI base:   0x%lx\n", (unsigned long)cap_base);
+	TC_PRINT("CHERI top:   0x%lx\n", (unsigned long)cap_base+cap_len);
+	TC_PRINT("CHERI length: %zu\n", cap_len);
+	TC_PRINT("CHERI tag: %zu\n", tag);
+}
+#endif
 
 struct foo {
 	int bar;
@@ -175,12 +194,38 @@ void stack_buffer_scenarios(void)
 	 * stack pointer up to the highest addresses in the buffer
 	 * Starting from &val which is close enough to stack pointer
 	 */
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * For CHERI we expect this to cause a hardware
+	 * bounds violation. The stack_ptr points to val which holds
+	 * an 8-bit value / 1 byte so is bounded to 1 byte.
+	 * After pos is incremented it becomes out of bounds
+	 * (over the 1 byte bound.)
+	 */
+	stack_ptr = &val;
+
+	/* Tell Ztest that the next fatal error is expected and should PASS. */
+	ztest_set_fault_valid(true);
+
+	for (pos = stack_ptr; pos < stack_end; pos++) {
+		/* pos is volatile so this doesn't get optimized out */
+		print_cheri("pos\n", (void *)pos);
+		val = *pos;
+		*pos = val;
+	}
+
+	/* If we get here, no fatal occurred -> test must fail. */
+	ztest_test_fail();
+
+#else
+
 	stack_ptr = &val;
 	for (pos = stack_ptr; pos < stack_end; pos++) {
 		/* pos is volatile so this doesn't get optimized out */
 		val = *pos;
 		*pos = val;
 	}
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 #ifdef CONFIG_USERSPACE
 	if (is_usermode) {
@@ -312,10 +357,23 @@ void stack_buffer_scenarios(void)
 	}
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* In cheri we can't turn integers into void* and back */
+struct stest_params {
+	bool drop;
+};
+static struct stest_params global_params;
+#endif
+
 void stest_thread_entry(void *p1, void *p2, void *p3)
 {
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In cheri we can't turn integers into void* and back */
+	struct stest_params *params = p1;
+	bool drop = params->drop;
+#else
 	bool drop = (bool)p1;
-
+#endif
 	if (drop) {
 		k_thread_user_mode_enter(stest_thread_entry, (void *)false,
 					 p2, p3);
@@ -329,11 +387,19 @@ void stest_thread_launch(uint32_t flags, bool drop)
 	int ret;
 	size_t unused;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In cheri we can't turn integers into void* and back */
+	global_params.drop = drop;
+	k_thread_create(&test_thread, scenario_data.stack, STEST_STACKSIZE,
+			stest_thread_entry,
+			&global_params, NULL, NULL,
+			-1, flags, K_FOREVER);
+#else
 	k_thread_create(&test_thread, scenario_data.stack, STEST_STACKSIZE,
 			stest_thread_entry,
 			(void *)drop, NULL, NULL,
 			-1, flags, K_FOREVER);
-
+#endif
 #ifdef CONFIG_THREAD_STACK_MEM_MAPPED
 	scenario_data.stack_mapped = test_thread.stack_info.mapped.addr;
 

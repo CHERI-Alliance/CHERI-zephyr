@@ -105,6 +105,7 @@
 -s tests/lib/mem_blocks_stats/libraries.mem_blocks.stats \
 -s tests/lib/mem_blocks/libraries.mem_blocks \
 -s tests/cheri/lib/mem_blocks/cheri.libraries.mem_blocks \
+-s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/subsys/logging/log_output/logging.output \
