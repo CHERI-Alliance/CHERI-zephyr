@@ -131,7 +131,35 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack, char *sta
 #endif
 
 #ifdef __CHERI_PURE_CAPABILITY__
-	thread->callee_saved.csp = (uintptr_t)stack_init;
+
+	/*
+	 * when stacks are defined as an array, the capability bounds cover
+	 * the whole stack array so we need to reduce the bounds into a tight
+	 * capability for the single element that this thread will use.
+	 *
+	 * The compile-time CHERI-modified stack macros in thread_stack.h
+	 * adjusts the base to be CHERI aligned, and the length to be
+	 * CHERI representable. We just need to tighten bounds.
+	 *
+	 * The following has already been set: thread->stack_info.start/size.
+	 * we use this information to tighten the bounds whilst
+	 * preserving the same stack offset that was passed to us.
+	 */
+
+	/* Reconstruct correct bounds for the usable stack region */
+	void *stack_base = (void *)thread->stack_info.start;
+	size_t stack_size = thread->stack_info.size - thread->stack_info.delta;
+
+	/* Bound to one stack element - will create exception if not exact */
+	void *stack_init_cap = __builtin_cheri_bounds_set_exact(stack_base, stack_size);
+
+	/* Compute offset of stack_init inside the bounded region */
+	uintptr_t stack_offset = (uintptr_t)stack_init - (uintptr_t)stack_base;
+
+	stack_init_cap = __builtin_cheri_offset_set(stack_init_cap, stack_offset);
+
+	/* Store bounded CSP */
+	thread->callee_saved.csp = (uintptr_t)stack_init_cap;
 
 	/* where to go when returning from z_riscv_switch() */
 	thread->callee_saved.cra = (uintptr_t)z_riscv_thread_start;
@@ -142,7 +170,8 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack, char *sta
 
 	/* where to go when returning from z_riscv_switch() */
 	thread->callee_saved.ra = (unsigned long)z_riscv_thread_start;
-#endif
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 	/* our switch handle is the thread pointer itself */
 	thread->switch_handle = thread;

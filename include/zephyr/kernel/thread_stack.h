@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, added support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -107,6 +108,16 @@ static inline char *z_stack_ptr_align(char *ptr)
 #define K_KERNEL_STACK_LEN(size) \
 	ROUND_UP(Z_KERNEL_STACK_SIZE_ADJUST(size), Z_KERNEL_STACK_OBJ_ALIGN)
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Compute CHERI-representable length for KERNEL stacks. */
+#define Z_KERNEL_CHERI_REP_LEN(size) \
+	CHERI_ROUND_UP_TO_REP_LEN(K_KERNEL_STACK_LEN(size), ARCH_STACK_PTR_ALIGN)
+
+/* Compute CHERI-representable alignment for KERNEL stacks. */
+#define Z_KERNEL_CHERI_REP_ALIGN(size) \
+	CHERI_ALIGN_FOR_LEN(K_KERNEL_STACK_LEN(size), ARCH_STACK_PTR_ALIGN)
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /**
  * @addtogroup thread_stack_api
  * @{
@@ -121,9 +132,19 @@ static inline char *z_stack_ptr_align(char *ptr)
  * @param sym Thread stack symbol name
  * @param size Size of the stack memory region
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define K_KERNEL_STACK_DECLARE(sym, size) \
+	extern struct z_thread_stack_element \
+		sym[Z_KERNEL_CHERI_REP_LEN(size)]
+
+#else
+
 #define K_KERNEL_STACK_DECLARE(sym, size) \
 	extern struct z_thread_stack_element \
 		sym[K_KERNEL_STACK_LEN(size)]
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  * @brief Declare a reference to a thread stack array
@@ -135,9 +156,19 @@ static inline char *z_stack_ptr_align(char *ptr)
  * @param nmemb Number of stacks defined
  * @param size Size of the stack memory region
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define K_KERNEL_STACK_ARRAY_DECLARE(sym, nmemb, size) \
+	extern struct z_thread_stack_element \
+		sym[nmemb][Z_KERNEL_CHERI_REP_LEN(size)]
+
+#else
+
 #define K_KERNEL_STACK_ARRAY_DECLARE(sym, nmemb, size) \
 	extern struct z_thread_stack_element \
 		sym[nmemb][K_KERNEL_STACK_LEN(size)]
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  * @brief Declare a reference to a pinned thread stack array
@@ -149,9 +180,19 @@ static inline char *z_stack_ptr_align(char *ptr)
  * @param nmemb Number of stacks defined
  * @param size Size of the stack memory region
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define K_KERNEL_PINNED_STACK_ARRAY_DECLARE(sym, nmemb, size) \
+	extern struct z_thread_stack_element \
+		sym[nmemb][Z_KERNEL_CHERI_REP_LEN(size)]
+
+#else
+
 #define K_KERNEL_PINNED_STACK_ARRAY_DECLARE(sym, nmemb, size) \
 	extern struct z_thread_stack_element \
 		sym[nmemb][K_KERNEL_STACK_LEN(size)]
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  * @brief Define a toplevel kernel stack memory region in specified section
@@ -172,11 +213,21 @@ static inline char *z_stack_ptr_align(char *ptr)
  * @param size Size of the stack memory region
  * @param lsect Linker section for this stack
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define Z_KERNEL_STACK_DEFINE_IN(sym, size, lsect) \
+	struct z_thread_stack_element lsect \
+		__aligned(Z_KERNEL_CHERI_REP_ALIGN(size)) \
+		sym[Z_KERNEL_CHERI_REP_LEN(size)]
+
+#else
+
 #define Z_KERNEL_STACK_DEFINE_IN(sym, size, lsect) \
 	struct z_thread_stack_element lsect \
 		__aligned(Z_KERNEL_STACK_OBJ_ALIGN) \
 		sym[K_KERNEL_STACK_LEN(size)]
 
+#endif /* __CHERI_PURE_CAPABILITY__ */
 /**
  * @brief Define a toplevel array of kernel stack memory regions in specified section
  *
@@ -185,10 +236,21 @@ static inline char *z_stack_ptr_align(char *ptr)
  * @param size Size of the stack memory region
  * @param lsect Linker section for this array of stacks
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define Z_KERNEL_STACK_ARRAY_DEFINE_IN(sym, nmemb, size, lsect) \
+	struct z_thread_stack_element lsect \
+		__aligned(Z_KERNEL_CHERI_REP_ALIGN(nmemb * Z_KERNEL_CHERI_REP_LEN(size))) \
+		sym[nmemb][Z_KERNEL_CHERI_REP_LEN(size)]
+
+#else
+
 #define Z_KERNEL_STACK_ARRAY_DEFINE_IN(sym, nmemb, size, lsect) \
 	struct z_thread_stack_element lsect \
 		__aligned(Z_KERNEL_STACK_OBJ_ALIGN) \
 		sym[nmemb][K_KERNEL_STACK_LEN(size)]
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  * @brief Define a toplevel kernel stack memory region
@@ -287,6 +349,7 @@ static inline char *K_KERNEL_STACK_BUFFER(k_thread_stack_t *sym)
 {
 	return (char *)sym + K_KERNEL_STACK_RESERVED;
 }
+
 #ifndef CONFIG_USERSPACE
 #define K_THREAD_STACK_RESERVED		K_KERNEL_STACK_RESERVED
 #define K_THREAD_STACK_SIZEOF		K_KERNEL_STACK_SIZEOF
@@ -387,6 +450,16 @@ static inline char *K_KERNEL_STACK_BUFFER(k_thread_stack_t *sym)
 	(ROUND_UP((size), ARCH_STACK_PTR_ALIGN) + K_THREAD_STACK_RESERVED)
 #endif /* ARCH_THREAD_STACK_SIZE_ADJUST */
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Compute CHERI-representable length for THREAD stacks */
+#define Z_THREAD_CHERI_REP_LEN(size) \
+	CHERI_ROUND_UP_TO_REP_LEN(K_THREAD_STACK_LEN(size), ARCH_STACK_PTR_ALIGN)
+
+/* Compute CHERI-representable alignment for THREAD stacks */
+#define Z_THREAD_CHERI_REP_ALIGN(size) \
+	CHERI_ALIGN_FOR_LEN(K_THREAD_STACK_LEN(size), ARCH_STACK_PTR_ALIGN)
+#endif
+
 /**
  * @addtogroup thread_stack_api
  * @{
@@ -401,9 +474,19 @@ static inline char *K_KERNEL_STACK_BUFFER(k_thread_stack_t *sym)
  * @param sym Thread stack symbol name
  * @param size Size of the stack memory region
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define K_THREAD_STACK_DECLARE(sym, size) \
+	extern struct z_thread_stack_element \
+		sym[Z_THREAD_CHERI_REP_LEN(size)]
+
+#else
+
 #define K_THREAD_STACK_DECLARE(sym, size) \
 	extern struct z_thread_stack_element \
 		sym[K_THREAD_STACK_LEN(size)]
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  * @brief Declare a reference to a thread stack array
@@ -415,9 +498,20 @@ static inline char *K_KERNEL_STACK_BUFFER(k_thread_stack_t *sym)
  * @param nmemb Number of stacks defined
  * @param size Size of the stack memory region
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define K_THREAD_STACK_ARRAY_DECLARE(sym, nmemb, size) \
+	extern struct z_thread_stack_element \
+		sym[nmemb][Z_THREAD_CHERI_REP_LEN(size)]
+
+#else
+
 #define K_THREAD_STACK_ARRAY_DECLARE(sym, nmemb, size) \
 	extern struct z_thread_stack_element \
 		sym[nmemb][K_THREAD_STACK_LEN(size)]
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 
 /**
  * @brief Return the size in bytes of a stack memory region
@@ -463,10 +557,20 @@ static inline char *K_KERNEL_STACK_BUFFER(k_thread_stack_t *sym)
  * @param size Size of the stack memory region
  * @param lsect Linker section for this stack
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define Z_THREAD_STACK_DEFINE_IN(sym, size, lsect) \
+	struct z_thread_stack_element lsect \
+		__aligned(Z_THREAD_CHERI_REP_ALIGN(size)) \
+		sym[Z_THREAD_CHERI_REP_LEN(size)]
+
+#else
+
 #define Z_THREAD_STACK_DEFINE_IN(sym, size, lsect) \
 	struct z_thread_stack_element lsect \
 		__aligned(Z_THREAD_STACK_OBJ_ALIGN(size)) \
 		sym[K_THREAD_STACK_LEN(size)]
+#endif
 
 /**
  * @brief Define a toplevel array of thread stack memory regions in specified region
@@ -482,10 +586,20 @@ static inline char *K_KERNEL_STACK_BUFFER(k_thread_stack_t *sym)
  * @param size Size of the stack memory region
  * @param lsect Linker section for this stack
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+
+#define Z_THREAD_STACK_ARRAY_DEFINE_IN(sym, nmemb, size, lsect) \
+	struct z_thread_stack_element lsect \
+		__aligned(Z_THREAD_CHERI_REP_ALIGN(nmemb * Z_THREAD_CHERI_REP_LEN(size))) \
+		sym[nmemb][Z_THREAD_CHERI_REP_LEN(size)]
+
+#else
+
 #define Z_THREAD_STACK_ARRAY_DEFINE_IN(sym, nmemb, size, lsect) \
 	struct z_thread_stack_element lsect \
 		__aligned(Z_THREAD_STACK_OBJ_ALIGN(size)) \
 		sym[nmemb][K_THREAD_STACK_LEN(size)]
+#endif
 
 /**
  * @brief Define a toplevel thread stack memory region
@@ -632,7 +746,6 @@ static inline char *K_THREAD_STACK_BUFFER(k_thread_stack_t *sym)
 {
 	return (char *)sym + K_THREAD_STACK_RESERVED;
 }
-
 #endif /* CONFIG_USERSPACE */
 
 #ifdef __cplusplus
