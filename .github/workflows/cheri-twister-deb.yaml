@@ -1,0 +1,118 @@
+name: Twister custom CHERI tests
+
+on:
+  push:
+    branches:
+      - v*-cheri-branch
+      - collab-cheri**
+      - feature/0.3.0/*
+      - feature/cheri**
+      - feature/CHERI**
+  pull_request:
+    branches:
+      - v*-cheri-branch
+      - collab-cheri**
+  workflow_dispatch:
+
+jobs:
+  cheri-twister:
+    name: Run CHERI Twister Offline Test
+    runs-on: the-capable-hub-aws-ci
+    container:
+      image: ghcr.io/zephyrproject-rtos/ci-repo-cache:latest
+      options: --user 1000
+
+    env:
+      HOME: /home/user
+      ZEPHYR_PARENT_DIR: /home/user/zephyrproject
+      ZEPHYR_PROJECT_DIR: /home/user/zephyrproject/zephyr
+      ZEPHYR_TESTS_DIR: /home/user/test-scripts
+      DOCKER_QOL_DIR: /home/user/docker-qol
+      TOOL_DIR: /opt/cheri
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y gh
+
+      - name: Download Codasip DEBs
+        run: |
+          echo "${{ secrets.YAML_ACCESS }}" | gh auth login --with-token
+          gh release download custom-llvm-debs-0.2 --repo cheri-zephyr-project/custom-debs --pattern '*.deb'
+
+      - name: Install Codasip toolchain DEBs
+        run: |
+          sudo dpkg -i cheribuild_0.0.2_amd64.deb \
+                       codasip-gdb_0.0.2_amd64.deb \
+                       codasip-llvm_0.0.2_amd64.deb \
+                       codasip-qemu_0.0.2_amd64.deb \
+                       codasip-qemu-patched_0.0.2_amd64.deb || true
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Copy repo into container
+        run: |
+          pwd
+          mkdir -p $ZEPHYR_PROJECT_DIR
+          cp -ra . $ZEPHYR_PROJECT_DIR/
+          chown -R 1000:1000 $ZEPHYR_PROJECT_DIR
+
+      - name: Link Codasip compiler-rt
+        run: |
+          sudo mkdir -p $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv32 && \
+          sudo ln -s $TOOL_DIR/llvm-builtins-codasip/rv32imac-ilp32/lib/baremetal \
+                    $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv32/lib && \
+          sudo mkdir -p $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv64 && \
+          sudo ln -s $TOOL_DIR/llvm-builtins-codasip/rv64imac-lp64/lib/baremetal \
+                    $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv64/lib && \
+          sudo mkdir -p $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv32-purecap && \
+          sudo ln -s $TOOL_DIR/llvm-builtins-codasip/rv32imazcheripurecap-il32pc64/lib/baremetal \
+                    $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv32-purecap/lib && \
+          sudo mkdir -p $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv64-purecap && \
+          sudo ln -s $TOOL_DIR/llvm-builtins-codasip/rv64imazcheripurecap-l64pc128/lib/baremetal \
+                    $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv64-purecap/lib
+
+      - name: Install west
+        run: |
+          python3 -m venv $ZEPHYR_PARENT_DIR/.venv && \
+          . $ZEPHYR_PARENT_DIR/.venv/bin/activate && \
+          pip install pyelftools && \
+          pip install west && \
+          cp $ZEPHYR_PROJECT_DIR/scripts/requirements*.txt $ZEPHYR_PARENT_DIR/ && \
+          pip install -r $ZEPHYR_PARENT_DIR/requirements.txt
+
+
+      - name: Init devenv (same as old devenv-image)
+        run: |
+          cd $ZEPHYR_PARENT_DIR
+          . $ZEPHYR_PARENT_DIR/.venv/bin/activate
+          west init -l zephyr
+          west update
+          west zephyr-export
+        shell: bash
+
+      - name: Run CHERI Codasip tests
+        run: |
+          export LLVM_CHERI_TOOLCHAIN_PATH=/opt/cheri/llvm-cheri-codasip/build
+          export QEMU_BIN_PATH=/opt/cheri/qemu-codasip/build
+          export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri
+          . $ZEPHYR_PARENT_DIR/.venv/bin/activate
+          cd $ZEPHYR_PROJECT_DIR
+          chmod +x ./scripts/cheri/ci/twister_cheri_codasip.sh
+          ./scripts/cheri/ci/twister_cheri_codasip.sh
+        shell: bash
+
+      - name: Run CHERI Cheribuild tests
+        run: |
+          export LLVM_CHERI_TOOLCHAIN_PATH=/opt/cheri/cheri/output/sdk
+          export QEMU_BIN_PATH=/opt/cheri/cheri/output/sdk/bin
+          export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri
+          . $ZEPHYR_PARENT_DIR/.venv/bin/activate
+          cd $ZEPHYR_PROJECT_DIR
+          chmod +x ./scripts/cheri/ci/twister_cheri_cheribuild.sh
+          ./scripts/cheri/ci/twister_cheri_cheribuild.sh
+        shell: bash
