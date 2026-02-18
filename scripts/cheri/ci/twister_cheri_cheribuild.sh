@@ -32,6 +32,7 @@
 -p qemu_riscv64cheri_purecap -p qemu_riscv64cheri_smp_purecap \
 -T samples/hello_world -T samples/synchronization \
 -T samples/philosophers -T samples/basic/sys_heap \
+-T samples/cheri \
 -v --short-build-path -O/tmp/twister-out
 
 #32bit
@@ -40,6 +41,7 @@
 -p qemu_riscv32cheri_purecap -p qemu_riscv32cheri_smp_purecap \
 -T samples/hello_world -T samples/synchronization \
 -T samples/philosophers -T samples/basic/sys_heap \
+-T samples/cheri \
 -v --short-build-path -O/tmp/twister-out
 
 #TESTS
