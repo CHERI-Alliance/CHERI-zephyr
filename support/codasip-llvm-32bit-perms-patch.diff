@@ -1,0 +1,20 @@
+diff --git a/clang/lib/Headers/cheri_init_globals_bw.h b/clang/lib/Headers/cheri_init_globals_bw.h
+index c87ef47f853f..1ae203d06a99 100644
+--- a/clang/lib/Headers/cheri_init_globals_bw.h
++++ b/clang/lib/Headers/cheri_init_globals_bw.h
+@@ -39,8 +39,15 @@ struct ELFRela {
+ static const __SIZE_TYPE__ function_reloc_flag = (__SIZE_TYPE__)1
+                                                  << (__SIZE_WIDTH__ - 1);
+ 
++#if __riscv_xlen == 64
+ static const __SIZE_TYPE__ function_pointer_permissions_mask =
+     GET_BIT_MASK(__CHERI_CAP_PERMISSION_WRITE__);
++#else
++// for 32 bit the permissions encoding means we can't unset the write bit without unsetting ASR
++// which is needed during execution of instructions so unset nothing here for 32 bit.
++static const __SIZE_TYPE__ function_pointer_permissions_mask =
++    GET_BIT_MASK(0x0);
++#endif
+ 
+ static const __SIZE_TYPE__ constant_reloc_flag = (__SIZE_TYPE__)1
+                                                  << (__SIZE_WIDTH__ - 2);

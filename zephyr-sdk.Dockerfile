@@ -1,18 +1,18 @@
-# CHERI-Zephyr-v0.2.0
 #
 # Copyright (c) 2025 University of Birmingham, Added to support CHERI spec
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 #################################################################################
-# Build docker and run tests
+# Build docker with zephyr SDK and run tests - can be used for running 
+#  zephyr-sdk based local CI tests
 #################################################################################
 # To build: (takes one hour)
 #  cd zephyrproject
-#  docker build --no-cache -t zephyrimage -f docker-release/CHERI-Zephyr-v0.2.0/zephyrdockerfile .
+#  docker build --no-cache -t zephyrimage -f docker-release/zephyr-sdk.Dockerfile .
 
 # To build wih buildx:
-#  docker buildx build -t zephyrimage -f docker-release/CHERI-Zephyr-v0.2.0/zephyrdockerfile --load .
+#  docker buildx build -t zephyrimage -f docker-release/zephyr-sdk.Dockerfile --load .
 # To run
 #  docker run -it zephyrimage bash
 #################################################################################
@@ -73,4 +73,3 @@ RUN . .venv/bin/activate && \
     
 # Final message
 CMD echo "Finished, Docker build!"
-
