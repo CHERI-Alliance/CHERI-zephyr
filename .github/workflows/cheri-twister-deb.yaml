@@ -31,15 +31,21 @@ jobs:
       TOOL_DIR: /opt/cheri
 
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y gh
+      # - name: Install dependencies
+      #   run: |
+      #     sudo apt update
+      #     sudo apt install -y gh
 
-      - name: Download Codasip DEBs
+      # - name: Download Codasip DEBs
+      #   run: |
+      #     echo "${{ secrets.YAML_ACCESS }}" | gh auth login --with-token
+      #     gh release download custom-llvm-debs-0.2 --repo cheri-zephyr-project/custom-debs --pattern '*.deb'
+
+      - name: Download Codasip DEBs (public release)
         run: |
-          echo "${{ secrets.YAML_ACCESS }}" | gh auth login --with-token
-          gh release download custom-llvm-debs-0.2 --repo cheri-zephyr-project/custom-debs --pattern '*.deb'
+          wget -qO- https://api.github.com/repos/cheri-zephyr-project/custom-debs/releases/latest \
+          | grep browser_download_url | grep '\.deb"' | cut -d '"' -f 4 \
+          | xargs -n1 wget -c
 
       - name: Install Codasip toolchain DEBs
         run: |
