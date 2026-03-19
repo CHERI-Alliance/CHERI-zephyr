@@ -67,7 +67,7 @@ RUN mkdir -p $TOOL_DIR/cheri/output && \
 
 # Import & intall DEBs
 RUN mkdir $HOME_DIR/custom-debs
-COPY custom-debs/*.deb $HOME_DIR/custom-debs
+COPY custom-debs/*.deb $HOME_DIR/custom-debs/
 
 RUN dpkg -i $HOME_DIR/custom-debs/cheribuild_0.0.2_amd64.deb $HOME_DIR/custom-debs/codasip-gdb_0.0.2_amd64.deb $HOME_DIR/custom-debs/codasip-llvm_0.0.2_amd64.deb $HOME_DIR/custom-debs/codasip-qemu_0.0.2_amd64.deb $HOME_DIR/custom-debs/codasip-qemu-patched_0.0.2_amd64.deb; 
 
