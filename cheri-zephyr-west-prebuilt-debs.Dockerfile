@@ -32,7 +32,7 @@ RUN apt update && apt upgrade -y && \
     # Libraries / headers
     libsdl2-dev libmagic1 libdebuginfod-dev \
     # Terminal stuff
-    tmux
+    tmux netcat-openbsd
 
 RUN ln -fs /usr/share/zoneinfo/Europe/London /etc/localtime && echo "Europe/London" > /etc/timezone
 
