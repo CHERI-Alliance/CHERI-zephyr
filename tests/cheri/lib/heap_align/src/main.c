@@ -1,12 +1,29 @@
 /*
  * Copyright (c) 2020 Intel Corporation
- * Copyright (c) 2026 University of Birmingham, modified to support CHERI
+ * Copyright (c) 2026 University of Birmingham, modified to support CHERI tests
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 #include <zephyr/sys/sys_heap.h>
+
+/**
+ * @brief Test sys_heap API with CHERI memory alignment
+ *
+ * @defgroup cheri_sys_heap_align_tests CHERI system heap lib align tests
+ *
+ * @ingroup cheri_tests
+ *
+ * This is a modified variation of the tests in
+ * tests/lib/heap_align but are more CHERI-specific.
+ */
+
+#include "inline_funcs.h"
+/* how many to print cheri bounds for */
+#define PRINT_ALLOCS 2
+int current_allocs = 1;
+
 
 /* need to peek into some heap internals */
 #include "../../../../lib/heap/heap.h"
@@ -73,7 +90,27 @@ static void check_heap_align(struct sys_heap *h,
 	size_t cheri_align = ROUND_UP(req_align, cheri_align_min);
 
 	align = cheri_align;
+
+	/* check addr is aligned to base */
+	size_t cheri_addr = __builtin_cheri_address_get(q);
+	size_t cheri_base = __builtin_cheri_base_get(q);
+
+	/* print out the first few, or if alignment fails */
+
+	if ((cheri_addr != cheri_base) ||
+	 (alignment_ok(q, align) == false) ||
+	 (current_allocs < PRINT_ALLOCS)) {
+		TC_PRINT("-------------Alignment-------------\n");
+		print_cheri("q:\n", q);
+		TC_PRINT("requested align: %zu\n", req_align);
+		TC_PRINT("min_align: %zu\n", min_align);
+		TC_PRINT("cheri_align_int: %zu\n", cheri_align_int);
+		TC_PRINT("cheri_align_min: %zu\n", cheri_align_min);
+		TC_PRINT("expected cheri align: %zu\n", cheri_align);
+	}
+	zassert_equal(cheri_addr, cheri_base, "cheri_addr != cheri_base");
 #endif
+
 	zassert_true(alignment_ok(q, align), "block not aligned");
 
 	r = sys_heap_aligned_alloc(h, align, size);
@@ -83,15 +120,60 @@ static void check_heap_align(struct sys_heap *h,
 	/* Make sure ALL the split memory goes back into the heap and
 	 * we can allocate the full remaining suffix
 	 */
-
-	/* We skip this test for CHERI
-	 * when the memory is allocated for suffix it is aligned and rounded up to the
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* when the memory is allocated for suffix it is aligned and rounded up to the
 	 * CHERI representable length. This means trying to allocate the suffix directly
 	 * might not actually fit into the remaining space once this has been accounted for.
+	 * i.e rounded_up_suffix = __builtin_cheri_round_representable_length(WB_UP(suffix));
+	 * plus alignment
 	 * if we round down to fit there might still be a bit of memory left at the end.
-	 * This is not a fair test for CHERI version.
+	 *
+	 * To work out the maximum size that can be allocated we need to
+	 * 1. find the alignment and sub to lower boundary
+	 * 2. round up the start to the alignment
+	 * 3. round down the end to the alignment and
+	 * 4. calc the size from end - start
+	 *
+	 * This means we can't really do the tests for CHERI in the same way as non-cheri.
+	 * (where the test assumes suffix can be allocated and then the heap is empty.)
+	 * Also it doesn't really make sense to do the above calculation because it doesn't
+	 * really test anything CHERI-specific.
+	 * what we can do here is check the suffix length assumed from the calculation
+	 * with the suffix length measured from getting the cheri bounds of r
+	 * this allows us to perform some extra bounds checks
 	 */
-#ifndef __CHERI_PURE_CAPABILITY__
+
+	/* Calculate the suffix.
+	 * For CHERI the size is rounded up firstly to fit a cap pointer (WB_UP),
+	 * and then to CHERI rep length. It is then rounded up to chunk size
+	 * Using r already takes into account any CHERI alignment.
+	 */
+	size_t cheri_round_size = __builtin_cheri_round_representable_length(WB_UP(size));
+	uint8_t *round_up_addr = (uint8_t *)ROUND_UP((uintptr_t)r + cheri_round_size, CHUNK_UNIT);
+
+	suffix = (heap_end - round_up_addr) - heap_chunk_header_size;
+
+	/* Calculate the suffix from bounds */
+	uint8_t *addr_from_bounds = (uint8_t *)((uintptr_t)r + __builtin_cheri_length_get(r));
+	size_t suffix_from_bounds = heap_end - addr_from_bounds -  heap_chunk_header_size;
+
+	/* print out the first few or if suffix check fails */
+	if (suffix != suffix_from_bounds ||
+	 (current_allocs < PRINT_ALLOCS)) {
+		TC_PRINT("-------------Suffix-------------\n");
+		TC_PRINT("size: %zu\n", size);
+		TC_PRINT("cheri_round_size: %zu\n", cheri_round_size);
+		TC_PRINT("round_up_addr: %p\n", round_up_addr);
+		print_cheri("r:\n", r);
+		TC_PRINT("heap_end: %p\n", heap_end);
+		TC_PRINT("heap_chunk_header_size: %zu\n", heap_chunk_header_size);
+		TC_PRINT("addr_from_bounds: %p\n", addr_from_bounds);
+		TC_PRINT("suffix: %zu\n", suffix);
+		TC_PRINT("suffix_from_bounds: %zu\n", suffix_from_bounds);
+		current_allocs++;
+	}
+	zassert_equal(suffix, suffix_from_bounds, "suffix != suffix_from_bounds");
+#else
 	suffix = (heap_end - (uint8_t *)ROUND_UP((uintptr_t)r + size, CHUNK_UNIT))
 		- heap_chunk_header_size;
 
@@ -116,14 +198,19 @@ static void check_heap_align(struct sys_heap *h,
 #endif
 }
 
-ZTEST(lib_heap_align, test_aligned_alloc)
+/**
+ * @brief alignment and suffix testing with CHERI
+ *
+ * @details Verify that the system aligns memory
+ * blocks correctly with CHERI. Asserts this against
+ * what is expected.
+ *
+ * @ingroup cheri_sys_heap_align_tests
+ */
+ZTEST(cheri_lib_heap_align, test_aligned_alloc)
 {
 	struct sys_heap heap = {};
 	void *p, *q;
-
-#ifdef __CHERI_PURE_CAPABILITY__
-	TC_PRINT("skipping suffix test for CHERI\n");
-#endif
 
 	sys_heap_init(&heap, heapmem, HEAP_SZ);
 
@@ -166,4 +253,4 @@ ZTEST(lib_heap_align, test_aligned_alloc)
 	sys_heap_free(&heap, q);
 }
 
-ZTEST_SUITE(lib_heap_align, NULL, NULL, NULL, NULL, NULL);
+ZTEST_SUITE(cheri_lib_heap_align, NULL, NULL, NULL, NULL, NULL);

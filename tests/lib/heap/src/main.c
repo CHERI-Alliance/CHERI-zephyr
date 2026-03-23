@@ -127,8 +127,16 @@ void *testalloc(void *arg, size_t bytes)
 		size_t addr = (size_t) ret;
 		size_t chunk = ROUND_DOWN(addr - 1, 8);
 		size_t hdr = addr - chunk;
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* cheri modified heap api rounds up to cap size(WB_UP)
+		 * and then rounds to representable length
+		 */
+		size_t expect = ROUND_UP(
+			__builtin_cheri_round_representable_length(WB_UP(bytes))
+			+ hdr, 8) - hdr;
+#else
 		size_t expect = ROUND_UP(bytes + hdr, 8) - hdr;
-
+#endif
 		zassert_equal(blksz, expect,
 			      "wrong size block returned bytes = %ld ret = %ld",
 			      bytes, blksz);
@@ -307,16 +315,25 @@ ZTEST(lib_heap, test_realloc)
 	p1 = sys_heap_alloc(&heap, 64);
 	realloc_fill_block(p1, 64);
 	p2 = sys_heap_realloc(&heap, p1, 128);
-
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI we don't expand in place for byte requests that
+	 * don't fit in the current bounds, instead we force a normal
+	 * allocation.
+	 */
+	zassert_true(p1 != p2,
+		     "Realloc should allocate from heap if not fit");
+#else
 	zassert_true(p1 == p2,
 		     "Realloc should have expanded in place %p -> %p",
 		     p1, p2);
+#endif
 	zassert_true(realloc_check_block(p2, p1, 64), "data changed");
 
 	/* Allocate two blocks, then expand the first, validate that
 	 * it moves.
 	 */
+
 	p1 = sys_heap_alloc(&heap, 64);
 	realloc_fill_block(p1, 64);
 	p2 = sys_heap_alloc(&heap, 64);
@@ -335,9 +352,18 @@ ZTEST(lib_heap, test_realloc)
 	p2 = sys_heap_realloc(&heap, p1, 64);
 
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI we don't shrink in place for byte requests that
+	 * don't fit in the current bounds, instead we force a normal
+	 * allocation.
+	 */
+	zassert_true(p1 != p2,
+		     "Realloc should allocate from heap if not fit");
+#else
 	zassert_true(p1 == p2,
 		     "Realloc should have shrunk in place %p -> %p",
 		     p1, p2);
+#endif
 	zassert_true(realloc_check_block(p2, p1, 64), "data changed");
 
 	/* Allocate two blocks, then expand the first within a chunk.
@@ -350,6 +376,10 @@ ZTEST(lib_heap, test_realloc)
 	p3 = sys_heap_realloc(&heap, p1, 64);
 
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
+
+	/* For CHERI we can expand in place for byte requests that
+	 * fit in the current bounds, i.e within a chunk.
+	 */
 	zassert_true(p1 == p3,
 		     "Realloc should have expanded in place %p -> %p",
 		     p1, p3);
@@ -364,12 +394,12 @@ ZTEST(lib_heap, test_realloc)
 	p2 = sys_heap_alloc(&heap, 32);
 	realloc_fill_block(p2, 32);
 	p3 = sys_heap_aligned_realloc(&heap, p1, 8, 36);
-
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
 	zassert_true(realloc_check_block(p3, p1, 32), "data changed");
 	zassert_true(realloc_check_block(p2, p2, 32), "data changed");
 	realloc_fill_block(p3, 36);
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
+
 	zassert_true(p1 != p3,
 		     "Realloc should have moved %p", p1);
 
@@ -378,13 +408,30 @@ ZTEST(lib_heap, test_realloc)
 	p2 = sys_heap_aligned_alloc(&heap, 8, 32);
 	p3 = sys_heap_aligned_realloc(&heap, p2, 8, 16);
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI we don't shrink in place for byte requests that
+	 * don't fit in the current bounds, instead we force a normal
+	 * allocation.
+	 */
+	zassert_true(p2 != p3,
+		     "Realloc should allocate from heap if not fit");
+#else
 	zassert_true(p2 == p3,
 		     "Realloc should have expanded in place %p -> %p",
 		     p2, p3);
+#endif
 	p3 = sys_heap_aligned_alloc(&heap, 32, 8);
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI, during realloc p2 is freed because is not done in place
+	 * p2 addr and chunks are free to be reallocated so could be
+	 * reallocated during p3 second assignment, where p2 = p3
+	 * but also could be diff p2 != p3, both cases valid.
+	 */
+#else
 	zassert_true(p2 != p3,
 		     "Realloc should have moved %p", p2);
+#endif
 }
 
 #ifdef CONFIG_SYS_HEAP_LISTENER

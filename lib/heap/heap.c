@@ -260,7 +260,11 @@ static chunkid_t alloc_chunk(struct z_heap *h, chunksz_t sz)
 	return 0;
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+void *sys_heap_raw_alloc(struct sys_heap *heap, size_t bytes)
+#else
 void *sys_heap_alloc(struct sys_heap *heap, size_t bytes)
+#endif /* __CHERI_PURE_CAPABILITY__ */
 {
 	struct z_heap *h = heap->heap;
 	void *mem;
@@ -298,6 +302,13 @@ void *sys_heap_alloc(struct sys_heap *heap, size_t bytes)
 	return mem;
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+void *sys_heap_alloc(struct sys_heap *heap, size_t bytes)
+{
+	return sys_heap_aligned_alloc(heap, 1, bytes);
+}
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 void *sys_heap_noalign_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 {
 	ARG_UNUSED(align);
@@ -305,7 +316,11 @@ void *sys_heap_noalign_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 	return sys_heap_alloc(heap, bytes);
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+void *sys_heap_raw_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
+#else
 void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
+#endif
 {
 	struct z_heap *h = heap->heap;
 	size_t gap, rew;
@@ -323,7 +338,11 @@ void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 		gap = MIN(rew, chunk_header_bytes(h));
 	} else {
 		if (align <= chunk_header_bytes(h)) {
+#ifdef __CHERI_PURE_CAPABILITY__
+			return sys_heap_raw_alloc(heap, bytes);
+#else
 			return sys_heap_alloc(heap, bytes);
+#endif
 		}
 		rew = 0;
 		gap = chunk_header_bytes(h);
@@ -383,6 +402,47 @@ void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 	return mem;
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
+{
+	/*
+	 * When we round the bytes and alignment up as per below, the header
+	 * and its padding will always fit into whole 8 byte chunks.
+	 * Then the usable cheri data will also always fit into whole 8 byte chunks
+	 * This removes the need for returned memory having a smaller cheri bounds
+	 * than the chunk rounded up allocation, which can lead to mismatches with
+	 * other parts of the heap api.
+	 * e.g for 32 bit or small heap, min 8 byte alignment
+	 *     |header (4) pad(4) | cheri data in whole 8 byte chunks |
+	 * e.g for 64 bit or large heap, min 16 byte alignment
+	 *     |header (8) pad(8) | cheri data in whole 8 byte chunks |
+	 */
+
+	/* round up bytes to cap pointer size - do this to ensure usable size can
+	 * at least store a capability
+	 */
+	size_t size = WB_UP(bytes);
+
+	/* set the minimum alignment to be at least capability aligned
+	 * (8 for 32-bit, 16 for 64-bit)
+	 */
+	size_t min_align = sizeof(void *);
+	/* work out the required cheri alignment for the requested size */
+	size_t cheri_align_int = ~__builtin_cheri_representable_alignment_mask(WB_UP(size)) + 1;
+	/* then take into account the minimum alignment requirement */
+	size_t cheri_align_min = (min_align > cheri_align_int) ? min_align : cheri_align_int;
+	/* round up the requested alignment so it fits with CHERI requirements as well */
+	size_t cheri_align = ROUND_UP(align, cheri_align_min);
+
+	/* get the cheri representable length for the requested size */
+	size_t cheri_len = __builtin_cheri_round_representable_length(size);
+	/* ask for that much memory to be allocated */
+	void *raw = sys_heap_raw_aligned_alloc(heap, cheri_align, cheri_len);
+	/* set the bounds exactly of the memory allocated */
+	return __builtin_cheri_bounds_set_exact(raw, cheri_len);
+}
+#endif
+
 static bool inplace_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 {
 	struct z_heap *h = heap->heap;
@@ -399,6 +459,21 @@ static bool inplace_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 		/* We're good already */
 		return true;
 	}
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI, if the bounds need changing we return false.
+	 * To change the memory allocation requires the CHERI bounds to change
+	 * for the cap pointer which can't be done easily from here without
+	 * making changes to the function definition and careful changes.
+	 * For bounds reduction you need to compute the bounds and make sure
+	 * it is cheri aligned and rounded.
+	 * For bounds increases you additionally need to allocate the bounds
+	 * directly from the heap then reduce in size since you can't directly
+	 * increase bounds for the cap pointer.
+	 * The best solution is to return false to force normal allocation.
+	 */
+	return false;
+#endif
 
 	if (chunk_size(h, c) > chunks_need) {
 		/* Shrink in place, split off and free unused suffix */
@@ -538,8 +613,11 @@ void sys_heap_init(struct sys_heap *heap, void *mem, size_t bytes)
 
 	/* Reserve the end marker chunk's header */
 	__ASSERT(bytes > heap_footer_bytes(bytes), "heap size is too small");
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI save the footer size because we need to know it later */
+	size_t footer_size = heap_footer_bytes(bytes);
+#endif
 	bytes -= heap_footer_bytes(bytes);
-
 	/* Round the start up, the end down */
 	uintptr_t addr = ROUND_UP(mem, CHUNK_UNIT);
 	uintptr_t end = ROUND_DOWN((uint8_t *)mem + bytes, CHUNK_UNIT);
@@ -549,6 +627,32 @@ void sys_heap_init(struct sys_heap *heap, void *mem, size_t bytes)
 	__ASSERT(heap_sz > chunksz(sizeof(struct z_heap)), "heap size is too small");
 
 	struct z_heap *h = (struct z_heap *)addr;
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * Reduce the bounds of the heap (h) to match the req size.
+	 * we maintain existing alignment since the req. size is the same or smaller
+	 * than the backing buffer.
+	 * We need to find the rep length first, which might be bigger than the req.size.
+	 * heap_sz calculated above excludes the footer which we need to include in the bounds
+	 */
+
+	/*
+	 * 1) Compute the maximum raw span the allocator wants to manage after alignment rounding
+	 *     we also need to add back on the footer size because this also needs managing
+	 *     and is indexed later in this function to write the footer marker
+	 */
+	size_t raw_len = (size_t)(end - addr) + footer_size;
+
+	/* 2) Round to representable length */
+	size_t cheri_repr = __builtin_cheri_round_representable_length(raw_len);
+
+	/* 3) set exact bounds - the bounds might be greater than the req size */
+	/*    this is ok in this case because its still within the confines of the backing buffer */
+	/*    we therefore assume padding at the end of the usable chunks */
+	h = __builtin_cheri_bounds_set_exact(h, cheri_repr);
+
+#endif
 	heap->heap = h;
 	h->end_chunk = heap_sz;
 	h->avail_buckets = 0;
