@@ -1,22 +1,21 @@
 tests:
-  cheri.kernel.stack:
+  cheri.libraries.sys_heap_kheap:
     tags:
       - cheri
-      - kernel
-      - security
-      - userspace
+      - heap
+      - sys_heap
     toolchain_allow:
       - llvm-cheri
     platform_allow:
-      - qemu_riscv32cheri
-      - qemu_riscv32cheri_smp
       - qemu_riscv64cheri
+      - qemu_riscv32cheri
       - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp
       - qemu_riscv64cheri_purecap
       - qemu_riscv32cheri_purecap
       - qemu_riscv64cheri_zcheripurecap
       - qemu_riscv32cheri_zcheripurecap
-      - qemu_riscv64cheri_smp_purecap
       - qemu_riscv32cheri_smp_purecap
-      - qemu_riscv64cheri_smp_zcheripurecap
       - qemu_riscv32cheri_smp_zcheripurecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv64cheri_smp_zcheripurecap

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022 Jeppe Odgaard
+ * Copyright (c) 2026 University of Birmingham, modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +8,15 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/sys_heap.h>
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* We need a bigger memory for CHERI since it
+ * doesn't currently re-allocate inplace, it
+ * reallocates memory from the heap.
+ */
+#define HEAP_SIZE	512
+#else
 #define HEAP_SIZE	256
+#endif
 
 K_HEAP_DEFINE(my_kernel_heap, HEAP_SIZE);
 
@@ -31,6 +40,13 @@ int main(void)
 
 	p = sys_heap_realloc(&heap, p, 100);
 	print_sys_memory_stats(&heap);
+#ifdef __CHERI_PURE_CAPABILITY__
+	if (p == NULL) {
+		printk("WARNING: memory not re-allocated, "
+			"check the heap size is big enough, "
+			"needs to be re-allocated from heap in CHERI\n");
+	}
+#endif
 
 	sys_heap_free(&heap, p);
 	print_sys_memory_stats(&heap);

@@ -5875,6 +5875,26 @@ void k_heap_free(struct k_heap *h, void *mem) __attribute_nonnull(1);
  * @param bytes Size of memory region, in bytes
  * @param in_section __attribute__((section(name))
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* For CHERI we need to round and align to the CHERI
+ * representable length
+ */
+#define Z_HEAP_DEFINE_IN_SECT(name, bytes, in_section)		\
+	_Static_assert(bytes < CHERI_MACRO_MEM_MAX_LEN, \
+		"CHERI kheap must be smaller than the macros allow"); \
+	char in_section						\
+	     __aligned(CHERI_ALIGN_FOR_LEN(			\
+	     MAX(bytes, Z_HEAP_MIN_SIZE), 8)) /* CHUNK_UNIT */	\
+	     kheap_##name[CHERI_ROUND_UP_TO_REP_LEN(		\
+	     MAX(bytes, Z_HEAP_MIN_SIZE), 8)];			\
+	STRUCT_SECTION_ITERABLE(k_heap, name) = {		\
+		.heap = {					\
+			.init_mem = kheap_##name,		\
+			.init_bytes = CHERI_ROUND_UP_TO_REP_LEN( \
+			MAX(bytes, Z_HEAP_MIN_SIZE), 8),	\
+		 },						\
+	}
+#else
 #define Z_HEAP_DEFINE_IN_SECT(name, bytes, in_section)		\
 	char in_section						\
 	     __aligned(8) /* CHUNK_UNIT */			\
@@ -5885,7 +5905,7 @@ void k_heap_free(struct k_heap *h, void *mem) __attribute_nonnull(1);
 			.init_bytes = MAX(bytes, Z_HEAP_MIN_SIZE), \
 		 },						\
 	}
-
+#endif
 /**
  * @brief Define a static k_heap
  *

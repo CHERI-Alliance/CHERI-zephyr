@@ -27,38 +27,33 @@
 
 #SAMPLES
 #64bit
-#not yet work with CHERI sys_heap MEM_POOL_SIZE
-#-T samples/basic/sys_heap \
 ./scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv64cheri -p qemu_riscv64cheri_smp \
 -p qemu_riscv64cheri_purecap -p qemu_riscv64cheri_smp_purecap \
 -T samples/hello_world -T samples/synchronization \
--T samples/philosophers \
+-T samples/philosophers -T samples/basic/sys_heap \
 -T samples/cheri \
 -v --short-build-path -O/tmp/twister-out
 
 #32bit
-#not yet work with CHERI sys_heap MEM_POOL_SIZE
-#-T samples/basic/sys_heap \
 ./scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv32cheri -p qemu_riscv32cheri_smp \
 -p qemu_riscv32cheri_purecap -p qemu_riscv32cheri_smp_purecap \
 -T samples/hello_world -T samples/synchronization \
--T samples/philosophers
+-T samples/philosophers -T samples/basic/sys_heap \
 -T samples/cheri \
 -v --short-build-path -O/tmp/twister-out
 
 #TESTS
 #without PMP enabled IN PURECAP
 #64bit WITH and WITHOUT smp
-#not yet work with CHERI sys_heap MEM_POOL_SIZE
-#-s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 ./scripts/twister --retry-failed 1 --timeout-multiplier 2 \
 --runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv64cheri -p qemu_riscv64cheri_purecap \
 -p qemu_riscv64cheri_smp -p qemu_riscv64cheri_smp_purecap \
 -s tests/lib/heap/libraries.heap \
 -s tests/cheri/lib/heap/cheri.libraries.sys_heap \
+-s tests/cheri/lib/heap_sys_heap/cheri.libraries.sys_heap_kheap \
 -s tests/lib/heap_align/libraries.heap_align \
 -s tests/cheri/lib/heap_align/cheri.libraries.heap_align \
 -s tests/kernel/mem_slab/mslab/kernel.memory_slabs \
@@ -72,6 +67,7 @@
 -s tests/lib/mem_blocks_stats/libraries.mem_blocks.stats \
 -s tests/lib/mem_blocks/libraries.mem_blocks \
 -s tests/cheri/lib/mem_blocks/cheri.libraries.mem_blocks \
+-s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/subsys/logging/log_output/logging.output \
@@ -98,14 +94,13 @@
 -v --short-build-path -O/tmp/twister-out
 
 #32bit WITH and WITHOUT smp
-#not yet work with CHERI sys_heap MEM_POOL_SIZE
-#-s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 ./scripts/twister --retry-failed 1 --timeout-multiplier 2 \
 --runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv32cheri -p qemu_riscv32cheri_purecap \
 -p qemu_riscv32cheri_smp -p qemu_riscv32cheri_smp_purecap \
 -s tests/lib/heap/libraries.heap \
 -s tests/cheri/lib/heap/cheri.libraries.sys_heap \
+-s tests/cheri/lib/heap_sys_heap/cheri.libraries.sys_heap_kheap \
 -s tests/lib/heap_align/libraries.heap_align \
 -s tests/cheri/lib/heap_align/cheri.libraries.heap_align \
 -s tests/kernel/mem_slab/mslab/kernel.memory_slabs \
@@ -119,6 +114,7 @@
 -s tests/lib/mem_blocks_stats/libraries.mem_blocks.stats \
 -s tests/lib/mem_blocks/libraries.mem_blocks \
 -s tests/cheri/lib/mem_blocks/cheri.libraries.mem_blocks \
+-s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/subsys/logging/log_output/logging.output \

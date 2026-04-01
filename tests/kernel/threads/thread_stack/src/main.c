@@ -300,11 +300,26 @@ void stack_buffer_scenarios(void)
 #ifdef CONFIG_USERSPACE
 		/* Not defined if user mode disabled, all stacks are kernel stacks */
 		if (scenario_data.is_user) {
+#if defined(CONFIG_TOOLCHAIN_LLVM_CHERI) && !defined(__CHERI_PURE_CAPABILITY_)
+/* The llvm-cheri toolchain seems to create a pointer to the datas section 0x8003a050
+ * when scenario_data.declared_size is passed into the macro. Address 0x8003a050 is
+ * outside the PMP area causing an access fault (mcause 5). This only seems to happen
+ * for 64-bit RISCV. For llvm-cheri we have used the work-around to directly pass in
+ * STEST_STACKSIZE creating a compile time constant.
+ */
+			adjusted = K_THREAD_STACK_LEN(STEST_STACKSIZE);
+#else
 			adjusted = K_THREAD_STACK_LEN(scenario_data.declared_size);
+#endif /* CONFIG_TOOLCHAIN_LLVM_CHERI */
 		} else
 #endif
 		{
+#if defined(CONFIG_TOOLCHAIN_LLVM_CHERI) && !defined(__CHERI_PURE_CAPABILITY_)
+/* llvm-cheri toolchain mcause 5 fault work-around for 64-bit RISCV */
+			adjusted = K_KERNEL_STACK_LEN(STEST_STACKSIZE);
+#else
 			adjusted = K_KERNEL_STACK_LEN(scenario_data.declared_size);
+#endif /* CONFIG_TOOLCHAIN_LLVM_CHERI */
 		}
 		adjusted -= reserved;
 
@@ -328,9 +343,20 @@ void stack_buffer_scenarios(void)
 		 */
 
 		if (scenario_data.is_user) {
+#if defined(CONFIG_TOOLCHAIN_LLVM_CHERI) && !defined(__CHERI_PURE_CAPABILITY_)
+/* llvm-cheri toolchain mcause 5 fault work-around for 64-bit RISCV */
+			adjusted = K_THREAD_STACK_LEN(STEST_STACKSIZE);
+#else
 			adjusted = K_THREAD_STACK_LEN(scenario_data.declared_size);
+#endif /* CONFIG_TOOLCHAIN_LLVM_CHERI */
+
 		} else {
+#if defined(CONFIG_TOOLCHAIN_LLVM_CHERI) && !defined(__CHERI_PURE_CAPABILITY_)
+/* llvm-cheri toolchain mcause 5 fault work-around for 64-bit RISCV */
+			adjusted = K_KERNEL_STACK_LEN(STEST_STACKSIZE);
+#else
 			adjusted = K_KERNEL_STACK_LEN(scenario_data.declared_size);
+#endif /* CONFIG_TOOLCHAIN_LLVM_CHERI */
 		}
 		adjusted -= reserved;
 

@@ -4,17 +4,68 @@ sample:
 common:
   integration_platforms:
     - native_sim
-  harness: console
-  harness_config:
-    type: multi_line
-    ordered: true
-    regex:
-      - ".*allocated 15.,.*"
-      - ".*allocated 10.,.*"
-      - ".*allocated 0, free ..., max allocated ..., heap size 256.*"
 tests:
   sample.basic.sys_heap:
     tags:
       - heap
       - statistics
       - dynamic_memory
+    harness: console
+    harness_config:
+      type: multi_line
+      ordered: true
+      regex:
+        - ".*allocated 15.,.*"
+        - ".*allocated 10.,.*"
+        - ".*allocated 0, free ..., max allocated ..., heap size 256.*"
+    platform_exclude:
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+  sample.basic.sys_heap_cheri32:
+    tags:
+      - heap
+      - statistics
+      - dynamic_memory
+      - cheri
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+    harness: console
+    harness_config:
+      type: multi_line
+      ordered: true
+      regex:
+        - ".*allocated 1..,.*"
+        - ".*allocated 104,.*"
+        - ".*allocated 0, free ..., max allocated ..., heap size 512.*"
+  sample.basic.sys_heap_cheri64:
+    tags:
+      - heap
+      - statistics
+      - dynamic_memory
+      - cheri
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+    harness: console
+    harness_config:
+      type: multi_line
+      ordered: true
+      regex:
+        - ".*allocated 160,.*"
+        - ".*allocated 112,.*"
+        - ".*allocated 0, free ..., max allocated ..., heap size 512.*"
