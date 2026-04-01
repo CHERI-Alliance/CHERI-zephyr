@@ -1,0 +1,28 @@
+sample:
+  description: CHERI showing hardware exception
+  name: CHERI sys_heap overflow
+common:
+  tags: cheri
+  harness: console
+  harness_config:
+    type: one_line
+    regex:
+      - "Sample finished"
+tests:
+  samples.cheri.sys_heap_overflow:
+    tags: cheri
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+      - qemu_riscv32cheri_smp_zcheripurecap
