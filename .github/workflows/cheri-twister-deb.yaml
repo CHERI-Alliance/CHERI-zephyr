@@ -5,7 +5,7 @@ on:
     branches:
       - v*-cheri-branch
       - collab-cheri**
-      - feature/0.3.0/*
+      - feature/0.**
       - feature/cheri**
       - feature/CHERI**
   pull_request:
