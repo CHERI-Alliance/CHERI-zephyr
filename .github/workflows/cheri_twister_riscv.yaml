@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           ./scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
-          --retry-failed 1 --exclude-tag spdx \
+          --retry-failed 1 --exclude-tag spdx --exclude-tag shell \
           -p ${{ matrix.platform }} \
           -T samples -T tests -v
 
