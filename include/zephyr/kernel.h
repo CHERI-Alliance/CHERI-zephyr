@@ -5857,7 +5857,25 @@ void k_heap_free(struct k_heap *h, void *mem) __attribute_nonnull(1);
 /* Hand-calculated minimum heap sizes needed to return a successful
  * 1-byte allocation.  See details in lib/os/heap.[ch]
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* For CHERI it needs to be more because we round up to pointer size and align
+ * (32bit:4b-align, 64bit:8b-align, 32bit-cap:8b-align,64bit-cap:16b-align)
+ * 32bit data: chunk header (4) + pointer size (4) = 1 chunk (8)
+ * 32bit-cap data: chunk header (4) + pointer size (8) = 2 chunks (16)
+ * 64bit data: chunk header (4) + pointer size (8) = 2 chunks (16)
+ * 64bit-cap data: chunk header (4) + pointer size (16) = 3 chunks (24)
+ * Therefore:
+ * 32 non-cheri: head/foot+pad (36) + data (8) = 44
+ * 32 cheri: head/foot+pad (40) + data (16) = 56
+ *   i.e |z_heap(36)|head(4) data(8) pad(4)|head/foot(4)| = 56
+ * 64 non-cheri: head/foot+pad (40) + data (16) = 56
+ * 64 cheri: head/foot+pad (48) + data (24) = 72
+ *   i.e |z_heap(36) pad(8)|head(4) data(16) pad(4)|head/foot(4)| = 72
+ */
+#define Z_HEAP_MIN_SIZE ((sizeof(void *) > 8) ? 72 : 56)
+#else
 #define Z_HEAP_MIN_SIZE ((sizeof(void *) > 4) ? 56 : 44)
+#endif
 
 /**
  * @brief Define a static k_heap in the specified linker section

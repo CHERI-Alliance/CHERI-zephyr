@@ -103,6 +103,8 @@
 -s tests/cheri/lib/heap_sys_heap/cheri.libraries.sys_heap_kheap \
 -s tests/lib/heap_align/libraries.heap_align \
 -s tests/cheri/lib/heap_align/cheri.libraries.heap_align \
+-s tests/kernel/mem_heap/k_heap_api/kernel.k_heap_api \
+-s tests/cheri/kernel/mem_heap/k_heap_api/cheri.kernel.k_heap_api \
 -s tests/kernel/mem_slab/mslab/kernel.memory_slabs \
 -s tests/kernel/mem_slab/mslab_concept/kernel.memory_slabs.concept \
 -s tests/kernel/mem_slab/mslab_threadsafe/kernel.memory_slabs.threadsafe \
