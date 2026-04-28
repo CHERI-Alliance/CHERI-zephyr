@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, Added support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -20,10 +21,21 @@
 #define BOUNDS  (NMEMB * SIZE)
 
 #define N_MULTI_HEAPS 4
-#define MHEAP_BYTES 128
 
-static struct sys_multi_heap multi_heap;
+#ifdef __CHERI_PURE_CAPABILITY__
+/* set a bigger heap in CHERI because of alignment and padding */
+#define MHEAP_BYTES 256
+/* Align the backing buffer memory to 'at least' pointer size because
+ * a single heap is internally CHERI aligned to at least a pointer size.
+ * Without this, if the alignment of heap_mem comes out at 4 bytes say
+ * you end up with a single heap size less than you asked for.
+ */
+__aligned(sizeof(void *)) static char heap_mem[N_MULTI_HEAPS][MHEAP_BYTES];
+#else
+#define MHEAP_BYTES 128
 static char heap_mem[N_MULTI_HEAPS][MHEAP_BYTES];
+#endif
+static struct sys_multi_heap multi_heap;
 static struct sys_heap mheaps[N_MULTI_HEAPS];
 
 K_SEM_DEFINE(malloc_in_thread_sem, 0, 1);
@@ -155,6 +167,11 @@ static void realloc_handler(void *p1, void *p2, void *p3)
 	/* After all allocated buffers have been freed, make sure that we are able to allocate as
 	 * many again
 	 */
+#ifndef __CHERI_PURE_CAPABILITY__
+	/* We skip this test with cheri because we cannot extend existing bounds.
+	 * Instead CHERI does alloc + copy causing memory fragmentation
+	 * so will not necessarily be able to allocate as many again.
+	 */
 	block1 = k_malloc(BLK_SIZE_MIN);
 	zassert_not_null(block1);
 	for (size_t i = 1; i < nb; i++) {
@@ -173,6 +190,7 @@ static void realloc_handler(void *p1, void *p2, void *p3)
 		}
 		k_free(holes[i]);
 	}
+#endif
 }
 
 /*test cases*/
@@ -257,6 +275,23 @@ ZTEST(mheap_api, test_mheap_calloc)
 		zassert_equal(mem[i], 0);
 		mem[i] = 1;
 	}
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI we need to check any additional allocation
+	 * (due to representable length) is also zeroed.
+	 */
+	/* get the full length from base */
+	size_t cheri_len = __builtin_cheri_length_get(mem);
+	/* subtract the header pointer */
+	cheri_len = cheri_len - sizeof(void *);
+
+	if (cheri_len > (size_t)BOUNDS) {
+		for (int i = BOUNDS; i < cheri_len; i++) {
+			zassert_equal(mem[i], 0);
+			mem[i] = 1;
+		}
+	}
+#endif
 
 	k_free(mem);
 }
@@ -370,8 +405,12 @@ ZTEST(mheap_api, test_malloc_in_thread)
 void *multi_heap_choice(struct sys_multi_heap *mheap, void *cfg,
 			size_t align, size_t size)
 {
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In CHERI void * needs to be a valid capability */
+	struct sys_heap *h = cfg;
+#else
 	struct sys_heap *h = &mheaps[(int)(long)cfg];
-
+#endif
 	return sys_heap_aligned_alloc(h, align, size);
 }
 
@@ -389,24 +428,42 @@ ZTEST(mheap_api, test_multi_heap)
 	 * and that the pointer is in the correct memory
 	 */
 	for (int i = 0; i < N_MULTI_HEAPS; i++) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* In CHERI void * needs to be a valid capability */
+		blocks[i] = sys_multi_heap_alloc(&multi_heap, &mheaps[i],
+						 MHEAP_BYTES / 2);
+#else
 		blocks[i] = sys_multi_heap_alloc(&multi_heap, (void *)(long)i,
 						 MHEAP_BYTES / 2);
+#endif
 
 		zassert_not_null(blocks[i], "allocation failed");
 		zassert_true(blocks[i] >= &heap_mem[i][0] &&
 			     blocks[i] < &heap_mem[i+1][0],
 			     "allocation not in correct heap");
 
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* In CHERI void * needs to be a valid capability */
+		void *ptr = sys_multi_heap_realloc(&multi_heap, &mheaps[i],
+			blocks[i], MHEAP_BYTES / 2);
+#else
 		void *ptr = sys_multi_heap_realloc(&multi_heap, (void *)(long)i,
 			blocks[i], MHEAP_BYTES / 2);
+#endif
 
 		zassert_equal(ptr, blocks[i], "realloc moved pointer");
 	}
 
 	/* Make sure all heaps fail to allocate another */
 	for (int i = 0; i < N_MULTI_HEAPS; i++) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* In CHERI void * needs to be a valid capability */
+		void *b = sys_multi_heap_alloc(&multi_heap, &mheaps[i],
+					       MHEAP_BYTES / 2);
+#else
 		void *b = sys_multi_heap_alloc(&multi_heap, (void *)(long)i,
 					       MHEAP_BYTES / 2);
+#endif
 
 		zassert_is_null(b, "second allocation succeeded?");
 	}
@@ -418,28 +475,58 @@ ZTEST(mheap_api, test_multi_heap)
 
 	/* Allocate again to make sure they're still valid */
 	for (int i = 0; i < N_MULTI_HEAPS; i++) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* In CHERI void * need to be a valid capability */
+		blocks[i] = sys_multi_heap_alloc(&multi_heap, &mheaps[i],
+						 MHEAP_BYTES / 2);
+#else
 		blocks[i] = sys_multi_heap_alloc(&multi_heap, (void *)(long)i,
 						 MHEAP_BYTES / 2);
+#endif
 		zassert_not_null(blocks[i], "final re-allocation failed");
 
 		/* Allocating smaller buffer should stay within */
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* In CHERI void * need to be a valid capability */
+		void *ptr = sys_multi_heap_realloc(&multi_heap, &mheaps[i],
+						   blocks[i], MHEAP_BYTES / 4);
+#else
 		void *ptr = sys_multi_heap_realloc(&multi_heap, (void *)(long)i,
 						   blocks[i], MHEAP_BYTES / 4);
+#endif
 		zassert_equal(ptr, blocks[i], "realloc should return same value");
 
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* In CHERI void * need to be a valid capability */
+		ptr = sys_multi_heap_alloc(&multi_heap, &mheaps[i],
+					   MHEAP_BYTES / 4);
+#else
 		ptr = sys_multi_heap_alloc(&multi_heap, (void *)(long)i,
 					   MHEAP_BYTES / 4);
+#endif
 		zassert_between_inclusive((uintptr_t)ptr, (uintptr_t)blocks[i] + MHEAP_BYTES / 4,
 			(uintptr_t)blocks[i] + MHEAP_BYTES / 2 - 1,
 			"realloc failed to shrink prev buffer");
 	}
 
 	/* Test realloc special cases */
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In CHERI void * need to be a valid capability */
+	void *ptr = sys_multi_heap_realloc(&multi_heap, &mheaps[0],
+		blocks[0], /* size = */ 0);
+#else
 	void *ptr = sys_multi_heap_realloc(&multi_heap, (void *)0L,
 		blocks[0], /* size = */ 0);
+#endif
 	zassert_is_null(ptr);
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In CHERI void * need to be a valid capability */
+	ptr = sys_multi_heap_realloc(&multi_heap, &mheaps[0],
+		/* ptr = */ NULL, MHEAP_BYTES / 4);
+#else
 	ptr = sys_multi_heap_realloc(&multi_heap, (void *)0L,
 		/* ptr = */ NULL, MHEAP_BYTES / 4);
+#endif
 	zassert_not_null(ptr);
 }

@@ -4,6 +4,15 @@ tests:
       - multi_heap
     extra_configs:
       - CONFIG_IRQ_OFFLOAD=y
+    platform_exclude:
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+      - qemu_riscv64cheri_smp_zcheripurecap
   libraries.multi_heap.no_mt:
     tags:
       - multi_heap
@@ -27,3 +36,26 @@ tests:
       - qemu_cortex_m3
     extra_configs:
       - CONFIG_MULTITHREADING=n
+  libraries.multi_heap.cheri:
+    tags:
+      - multi_heap
+      - cheri
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+    extra_configs:
+      - CONFIG_IRQ_OFFLOAD=y
+    extra_conf_files:
+      - prj_cheri.conf

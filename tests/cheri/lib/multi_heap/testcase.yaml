@@ -1,0 +1,39 @@
+tests:
+  cheri.libraries.multi_heap:
+    tags:
+      - multi_heap
+      - cheri
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri_zcheripurecap
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+    extra_configs:
+      - CONFIG_IRQ_OFFLOAD=y
+  cheri.libraries.multi_heap.no_mt:
+    tags:
+      - multi_heap
+      - cheri
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv32cheri
+      - qemu_riscv64cheri
+      - qemu_riscv32cheri_smp
+      - qemu_riscv64cheri_smp
+      - qemu_riscv32cheri_smp_purecap
+      - qemu_riscv64cheri_smp_purecap
+      - qemu_riscv32cheri_smp_zcheripurecap
+      - qemu_riscv64cheri_smp_zcheripurecap
+    extra_configs:
+      - CONFIG_MULTITHREADING=n

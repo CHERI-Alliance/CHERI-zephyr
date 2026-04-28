@@ -352,18 +352,11 @@ ZTEST(lib_heap, test_realloc)
 	p2 = sys_heap_realloc(&heap, p1, 64);
 
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
-#ifdef __CHERI_PURE_CAPABILITY__
-	/* For CHERI we don't shrink in place for byte requests that
-	 * don't fit in the current bounds, instead we force a normal
-	 * allocation.
-	 */
-	zassert_true(p1 != p2,
-		     "Realloc should allocate from heap if not fit");
-#else
+
 	zassert_true(p1 == p2,
 		     "Realloc should have shrunk in place %p -> %p",
 		     p1, p2);
-#endif
+
 	zassert_true(realloc_check_block(p2, p1, 64), "data changed");
 
 	/* Allocate two blocks, then expand the first within a chunk.
@@ -408,18 +401,10 @@ ZTEST(lib_heap, test_realloc)
 	p2 = sys_heap_aligned_alloc(&heap, 8, 32);
 	p3 = sys_heap_aligned_realloc(&heap, p2, 8, 16);
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
-#ifdef __CHERI_PURE_CAPABILITY__
-	/* For CHERI we don't shrink in place for byte requests that
-	 * don't fit in the current bounds, instead we force a normal
-	 * allocation.
-	 */
-	zassert_true(p2 != p3,
-		     "Realloc should allocate from heap if not fit");
-#else
 	zassert_true(p2 == p3,
 		     "Realloc should have expanded in place %p -> %p",
 		     p2, p3);
-#endif
+
 	p3 = sys_heap_aligned_alloc(&heap, 32, 8);
 	zassert_true(sys_heap_validate(&heap), "invalid heap");
 #ifdef __CHERI_PURE_CAPABILITY__

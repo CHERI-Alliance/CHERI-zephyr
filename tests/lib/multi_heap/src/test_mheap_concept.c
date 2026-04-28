@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, 2020 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, Added support for CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,8 +11,12 @@
 #define THREADSAFE_THREAD_NUM 3
 #define THREADSAFE_BLOCK_SIZE 16
 #define THREADSAFE_STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#if defined(__CHERI_PURE_CAPABILITY__) && defined(CONFIG_64BIT)
+/* For 64-bit CHERI the stack size needs to be bigger */
+#define MALLOC_ALIGN4_STACK_SIZE (2048 + (BLK_NUM_MAX * sizeof(void *)))
+#else
 #define MALLOC_ALIGN4_STACK_SIZE (512 + (BLK_NUM_MAX * sizeof(void *)))
-
+#endif
 struct k_sem threadsafe_sema;
 static K_THREAD_STACK_ARRAY_DEFINE(threadsafe_tstack, THREADSAFE_THREAD_NUM, THREADSAFE_STACK_SIZE);
 static struct k_thread threadsafe_tdata[THREADSAFE_THREAD_NUM];

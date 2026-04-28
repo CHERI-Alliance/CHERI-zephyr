@@ -23,6 +23,54 @@ static void *z_alloc_helper(struct k_heap *heap, size_t align, size_t size,
 	__ASSERT((align & (align - 1)) == 0,
 		"align must be a power of 2");
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * For non-CHERI sys_heap_allocator alignment can be arbitrary allowing
+	 * enough space for the header (of size pointer) to be stored before the
+	 * start of the user pointer for data. | ptr header | user data |
+	 *
+	 * For CHERI however the sys_heap_allocator guarantees at least pointer
+	 * alignment, so we need to add extra padding before the header to allow
+	 * the correct user pointer alignment. |padding |ptr header | user data |
+	 */
+	size_t req_size;
+
+	/* we ignore alignment requests below pointer size because already met */
+	 __align = MAX(align, sizeof(void *));
+
+	/* space for user data, ptr header, and worst‑case padding */
+	/* hdr+data + __align-hdr in two steps */
+	if (size_add_overflow(size, sizeof(heap_ref), &req_size) ||
+		size_add_overflow(req_size,
+		__align - sizeof(heap_ref), &req_size)) {
+		return NULL;
+	}
+
+	key = k_spin_lock(&heap->lock);
+	/* Request size with at-least pointer alignment which it does anyway */
+	/* with CHERI the actual alignment maybe higher dep. on req_size */
+	mem = sys_heap_allocator(&heap->heap, sizeof(void *), req_size);
+	k_spin_unlock(&heap->lock, key);
+
+	if (mem == NULL) {
+		return NULL;
+	}
+
+	/* align user ptr */
+	uintptr_t raw = (uintptr_t)mem;
+	uintptr_t user_addr = ROUND_UP(raw + sizeof(heap_ref), __align);
+
+	/* place header immediately before returned user ptr */
+	heap_ref = (struct k_heap **)(user_addr - sizeof(heap_ref));
+	*heap_ref = heap;
+	mem = (void *)user_addr;
+
+	__ASSERT(((uintptr_t)user_addr & (__align - 1)) == 0,
+	"misaligned memory at %p (__align = %zu)",
+	(void *)user_addr, __align);
+
+	return mem;
+#else
 	/*
 	 * Adjust the size to make room for our heap reference.
 	 * Merge a rewind bit with align value (see sys_heap_aligned_alloc()).
@@ -53,6 +101,7 @@ static void *z_alloc_helper(struct k_heap *heap, size_t align, size_t size,
 		 "misaligned memory at %p (align = %zu)", mem, align);
 
 	return mem;
+#endif
 }
 
 void k_free(void *ptr)
@@ -62,8 +111,20 @@ void k_free(void *ptr)
 	if (ptr != NULL) {
 		heap_ref = ptr;
 		--heap_ref;
-		ptr = heap_ref;
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In cheri we need to take into account alignment padding
+	 * when the alignment allocator is used since the
+	 * underlying cap is always at least a pointer size aligned.
+	 * |padding | header | user data |
+	 */
+	uintptr_t cap_addr = __builtin_cheri_address_get(ptr);
+	uintptr_t cap_base = __builtin_cheri_base_get(ptr);
+	size_t offset = cap_addr-cap_base;
 
+	ptr = ptr-offset;
+#else
+		ptr = heap_ref;
+#endif
 		SYS_PORT_TRACING_OBJ_FUNC_ENTER(k_heap_sys, k_free, *heap_ref, heap_ref);
 
 		k_heap_free(*heap_ref, ptr);
@@ -114,6 +175,19 @@ void *k_calloc(size_t nmemb, size_t size)
 
 	ret = k_malloc(bounds);
 	if (ret != NULL) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* CHERI modified k_malloc may return a memory allocation > bounds
+		 * we need to zero everything including the padding
+		 * even if the user doesn't use it, to be safe.
+		 */
+
+		/* get the full length from base */
+		size_t cheri_len = __builtin_cheri_length_get(ret);
+		/* subtract the header pointer */
+		cheri_len = cheri_len - sizeof(void *);
+		/* Amend bounds to include any CHERI padding */
+		bounds = cheri_len;
+#endif
 		(void)memset(ret, 0, bounds);
 	}
 
@@ -156,6 +230,13 @@ void *k_realloc(void *ptr, size_t size)
 
 	if (ret != NULL) {
 		heap_ref = ret;
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* There are no guarantees from sys_heap that capabilities
+		 * are copied during realloc, we therefore need to
+		 * restore the header (pointer to k_heap struct)
+		 */
+		*heap_ref = heap;
+#endif
 		ret = ++heap_ref;
 	}
 

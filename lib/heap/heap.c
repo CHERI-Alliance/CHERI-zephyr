@@ -406,6 +406,12 @@ void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 #ifdef __CHERI_PURE_CAPABILITY__
 void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 {
+
+	/* Perform validity check on the heap */
+	if (heap == NULL) {
+		return NULL;
+	}
+
 	/*
 	 * When we round the bytes and alignment up as per below, the header
 	 * and its padding will always fit into whole 8 byte chunks.
@@ -432,8 +438,16 @@ void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
 	size_t cheri_align_int = ~__builtin_cheri_representable_alignment_mask(WB_UP(size)) + 1;
 	/* then take into account the minimum alignment requirement */
 	size_t cheri_align_min = (min_align > cheri_align_int) ? min_align : cheri_align_int;
+
+	/* we need to take into account the case where requested alignment is zero
+	 * we don't want the final result to be zero in the ROUND_UP,
+	 * we want it to be the minimum pointer size
+	 */
+	size_t __align =
+	(align == 0) ? min_align : align;
+
 	/* round up the requested alignment so it fits with CHERI requirements as well */
-	size_t cheri_align = ROUND_UP(align, cheri_align_min);
+	size_t cheri_align = ROUND_UP(__align, cheri_align_min);
 
 	/* get the cheri representable length for the requested size */
 	size_t cheri_len = __builtin_cheri_round_representable_length(size);
@@ -454,6 +468,7 @@ static bool inplace_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 
 	chunkid_t c = mem_to_chunkid(h, ptr);
 	size_t align_gap = (uint8_t *)ptr - (uint8_t *)chunk_mem(h, c);
+
 	chunksz_t chunks_need = bytes_to_chunksz(h, bytes + align_gap);
 
 	if (chunk_size(h, c) == chunks_need) {
@@ -461,23 +476,9 @@ static bool inplace_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 		return true;
 	}
 
-#ifdef __CHERI_PURE_CAPABILITY__
-	/* For CHERI, if the bounds need changing we return false.
-	 * To change the memory allocation requires the CHERI bounds to change
-	 * for the cap pointer which can't be done easily from here without
-	 * making changes to the function definition and careful changes.
-	 * For bounds reduction you need to compute the bounds and make sure
-	 * it is cheri aligned and rounded.
-	 * For bounds increases you additionally need to allocate the bounds
-	 * directly from the heap then reduce in size since you can't directly
-	 * increase bounds for the cap pointer.
-	 * The best solution is to return false to force normal allocation.
-	 */
-	return false;
-#endif
-
 	if (chunk_size(h, c) > chunks_need) {
 		/* Shrink in place, split off and free unused suffix */
+
 #ifdef CONFIG_SYS_HEAP_LISTENER
 		size_t bytes_freed = chunksz_to_bytes(h, chunk_size(h, c));
 #endif
@@ -497,9 +498,16 @@ static bool inplace_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 		heap_listener_notify_free(HEAP_ID_FROM_POINTER(heap), ptr,
 					  bytes_freed);
 #endif
-
 		return true;
 	}
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI, if the bounds need increasing we return false
+	 * because we can't increase bounds on an existing pointer.
+	 * This forces an alloc and copy to create a new allocation.
+	 */
+	return false;
+#endif
 
 	chunkid_t rc = right_chunk(h, c);
 
@@ -550,9 +558,39 @@ void *sys_heap_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 		return NULL;
 	}
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI we can only maintain or reduce the
+	 * bounds for reallocations.
+	 * For CHERI we only ever use aligned allocations so
+	 * here the alignment stays the same.
+	 * round up bytes to cap pointer size.
+	 * most funcs here do that at lower level
+	 * but we need to calc here for reducing ptr bounds inplace
+	 * and memcpy needs to know it.
+	 */
+
+	size_t size = WB_UP(bytes);
+	size_t cheri_len = __builtin_cheri_round_representable_length(size);
+
+	if (inplace_realloc(heap, ptr, cheri_len)) {
+		/* Reduce the bounds of the capability in-place.
+		 * If coming from mempool api, bytes includes the header
+		 * and pointer is already moved to the start / base
+		 *
+		 * For bounds reduction we can maintain the higher alignment
+		 * even if a lower one is ok because it factors/fits due to the
+		 * incremental power-of-two CHERI alignment
+		 */
+		ptr = __builtin_cheri_bounds_set_exact(ptr, cheri_len);
+		return ptr;
+	}
+
+#else
+
 	if (inplace_realloc(heap, ptr, bytes)) {
 		return ptr;
 	}
+#endif
 
 	/* In-place realloc was not possible: fallback to allocate and copy. */
 	void *ptr2 = sys_heap_alloc(heap, bytes);
@@ -560,6 +598,10 @@ void *sys_heap_realloc(struct sys_heap *heap, void *ptr, size_t bytes)
 	if (ptr2 != NULL) {
 		size_t prev_size = sys_heap_usable_size(heap, ptr);
 
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* allow for cheri rounding to copy bytes*/
+		bytes = cheri_len;
+#endif
 		memcpy(ptr2, ptr, MIN(prev_size, bytes));
 		sys_heap_free(heap, ptr);
 	}
@@ -580,10 +622,37 @@ void *sys_heap_aligned_realloc(struct sys_heap *heap, void *ptr,
 
 	__ASSERT((align & (align - 1)) == 0, "align must be a power of 2");
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* For CHERI we can only maintain or reduce the
+	 * bounds for reallocations.
+	 * round up bytes to cap pointer size.
+	 * most funcs here do that at lower level
+	 * but we need to calc here for reducing ptr bounds inplace
+	 * and memcpy needs to know it.
+	 */
+	size_t size = WB_UP(bytes);
+	size_t cheri_len = __builtin_cheri_round_representable_length(size);
+
+	if ((align == 0 || ((uintptr_t)ptr & (align - 1)) == 0) &&
+	    inplace_realloc(heap, ptr, cheri_len)) {
+		/* Reduce the bounds of the capability in-place.
+		 * If coming from mempool api, bytes includes the header
+		 * and pointer is already moved to the start / base
+		 *
+		 * For bounds reduction we can maintain the higher alignment
+		 * even if a lower one is ok because it factors/fits due to the
+		 * incremental power-of-two CHERI alignment
+		 */
+		ptr = __builtin_cheri_bounds_set_exact(ptr, cheri_len);
+		return ptr;
+	}
+
+#else
 	if ((align == 0 || ((uintptr_t)ptr & (align - 1)) == 0) &&
 	    inplace_realloc(heap, ptr, bytes)) {
 		return ptr;
 	}
+#endif
 
 	/*
 	 * Either ptr is not sufficiently aligned for in-place realloc or
@@ -593,6 +662,11 @@ void *sys_heap_aligned_realloc(struct sys_heap *heap, void *ptr,
 
 	if (ptr2 != NULL) {
 		size_t prev_size = sys_heap_usable_size(heap, ptr);
+
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* allow for cheri rounding to copy bytes*/
+		bytes = cheri_len;
+#endif
 
 		memcpy(ptr2, ptr, MIN(prev_size, bytes));
 		sys_heap_free(heap, ptr);
