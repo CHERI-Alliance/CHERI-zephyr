@@ -23,7 +23,8 @@ The docker image includes everything you need to run QEMU tests for the above CH
 
 The following assumes that you are in a working directory called `zephyrproject`.
 The process has 3 Stages:
-1. Stage 1: builds CHERI-llvm (sources and artifacts are in the Docker image) - you can optionally skip this build step and download pre-built debs.
+1. Stage 1: builds CHERI-llvm (sources and artifacts are in the Docker image)
+    * You can optionally skip this build step and download pre-built debs.
 2. Stage 2: builds Zephyr west (sources external to Docker image: git and Stage 1)
 3. Stage 3: initializes the environment for running tests (This stage is sourced from image in Stage 2)
 
@@ -40,24 +41,25 @@ git clone --recurse-submodules --branch <BRANCH_NAME_HERE> https://github.com/CH
 ```
 
 where `<BRANCH_NAME_HERE>` is the desired release, e.g. `vx.x.x-cheri-branch`.
- 
+
 ## Building the dev environment
 You might want to add `--no-cache` on rebuilds after substantial changes.
 
 
-### Stage 1: Build CHERI-llvm 
-(can take more than 1 hour, starts from a Ubuntu base image)
+### Stage 1: Build CHERI-llvm
+Note: building the llvm image from scratch (from an Ubuntu base image) can take more than 1 hour.  For alternatives, see below.
 
 ```
 docker build -t cheri-llvm -f docker-release/cheri-zephyr-llvm.Dockerfile .
 ```
 
-_Optional (stage 1):_ to select at this stage
+#### Option: Select certain toolchains:
+Use the `--build-arg` flag to only build certain toolchains, eg:
 ```
 docker build --build-arg FEATURE_CHERIBUILD=false --build-arg FEATURE_CODASIP=true -t cheri-llvm -f docker-release/cheri-zephyr-llvm.Dockerfile .
 ```
-
-Alternatively, you can place the custom debs (https://github.com/cheri-zephyr-project/custom-debs/releases/tag/custom-llvm-debs-0.2) in the root folder, and then use a build argument for stage 2 (see below):
+#### Option: Use precompiled toolchain (debs)
+Alternatively, you can download precompiled custom debs (see: https://github.com/cheri-zephyr-project/custom-debs/releases/tag/custom-llvm-debs-0.2) into the root folder, and then use a build argument for stage 2 (see below):
 
 ```
 mkdir custom-debs
@@ -65,20 +67,21 @@ cd custom debs
 gh release download custom-llvm-debs-0.2 --repo cheri-zephyr-project/custom-debs --pattern '*.deb'
 ```
 
-### Stage 2: Build Zephyr west 
-(moderately quick, starts from a Ubuntu base image and requires Stage 1 and a clone of the zephyr repo in a 'zephyr' subdir at the same level as docker-release)
+### Stage 2: Build Zephyr west
+This step is moderately quick, starts from a Ubuntu base image and requires Stage 1 and a clone of the zephyr repo in a 'zephyr' subdir at the same level as docker-release.
 
 ```
 docker build -t cheri-zephyr-west -f docker-release/cheri-zephyr-west.Dockerfile .
 ```
 
+#### Option: Use precompiled toolchain (debs)
 If you have downloaded the custom debs, then run this instead:
 
 ```
 docker build -t cheri-zephyr-west -f docker-release/cheri-zephyr-west-prebuilt-debs.Dockerfile .
 ```
 
-#### Stage 2b (optional): 
+### Stage 2b: Live Zephyr Mount (Optional):
 If you want to work on a clone of Zephyr mounted into the container, proceed as follows - otherwise you can instead go to stage 3.
 
 Mount into Docker and run a shell:
@@ -96,11 +99,11 @@ git clone --recurse-submodules --branch <BRANCH_NAME_HERE> https://github.com/CH
 docker run -v ./zephyr-work:/home/user/zephyrproject/zephyr -it cheri-zephyr-west bash
 ```
 
-### Stage 3: Build the dev environment 
+### Stage 3: Build the dev environment
 
-(takes less than 10 minutes)
+This should take less than 10 minutes.
 
-*Note:* This will copy and build the `zephyr` folder into the container. If you want to work with a mounted folder instead, refer to stage 2b just above.
+*Note:* This will copy and build the `zephyr` folder into the container. If you want to work with a mounted folder instead, refer to stage 2b, just above.
 
 ```
 docker build -t cheri-zephyr-devenv -f docker-release/cheri-zephyr-devenv.Dockerfile .
@@ -186,7 +189,7 @@ Cambridge:
 
 ### Building with west
 
-Samples and tests can be built and run individually using west. 
+Samples and tests can be built and run individually using west.
 
 Codasip:
 ```
@@ -271,7 +274,7 @@ docker run -it zephyr bash
 You can then run non-cheri standard RISCV tests as follows: (To run all the tests can take a long time)
 
 ```
-python3 zephyr/scripts/twister -p qemu_riscv64 -T zephyr/tests 
+python3 zephyr/scripts/twister -p qemu_riscv64 -T zephyr/tests
 python3 zephyr/scripts/twister -p qemu_riscv32 -T zephyr/tests
 python3 zephyr/scripts/twister -p qemu_riscv64 -T zephyr/samples
 python3 zephyr/scripts/twister -p qemu_riscv32 -T zephyr/samples
@@ -279,10 +282,6 @@ python3 zephyr/scripts/twister -p qemu_riscv32 -T zephyr/samples
 
 Note: it is common that sometimes intermittent time out errors can occur with the following sample tests, (depending on speed of machine etc). Refer to zephyr documentation for twister commands to tweak time-out settings.
 
-* /zephyr/samples/subsys/testsuite/pytest/shell/sample.harness.shell.vt100_colors_off 
+* /zephyr/samples/subsys/testsuite/pytest/shell/sample.harness.shell.vt100_colors_off
 * /zephyr/samples/subsys/testsuite/pytest/shell/sample.harness.shell
-* /zephyr/samples/sensor/sensor_shell/sample.sensor.shell.pytest 
-
-
-
-
+* /zephyr/samples/sensor/sensor_shell/sample.sensor.shell.pytest
