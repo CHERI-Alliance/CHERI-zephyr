@@ -36,10 +36,9 @@ RUN apt update && \
     libbz2-dev libattr1-dev libcap-ng-dev libexpat1-dev libgmp-dev libmpfr-dev libmpc-dev \
     libncurses-dev libdebuginfod-dev libmagic1 \
     # Utilities
-    git dfu-util device-tree-compiler file xz-utils bzip2 time vim nano tree \
+    git dfu-util device-tree-compiler file xz-utils bzip2 time vim nano tree sudo \
     # Networking / other tools
     samba texinfo
-
 
 RUN ln -fs /usr/share/zoneinfo/Europe/London /etc/localtime && echo "Europe/London" > /etc/timezone
 
