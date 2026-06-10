@@ -1,0 +1,26 @@
+boards:
+
+  - name: hobgoblin_riscv64cheri
+    full_name: codasip x730-mp4 hobgoblin hardware platform for riscv64cheri
+    vendor: codasip
+    socs:
+      - name: hobgoblin_x730_mp4_riscv64cheri
+        variants:
+          - name: smp
+  - name: hobgoblin_riscv64cheri_smp
+    full_name: codasip x730-mp4 hobgoblin hardware platform for riscv64cheri_smp
+    vendor: codasip
+    socs:
+      - name: hobgoblin_x730_mp4_riscv64cheri
+  - name: hobgoblin_riscv64cheri_zcheripurecap
+    full_name: codasip x730-mp4 hobgoblin hardware platform for riscv64cheri_zcheripurecap
+    vendor: codasip
+    socs:
+      - name: hobgoblin_x730_mp4_riscv64cheri
+        variants:
+          - name: smp
+  - name: hobgoblin_riscv64cheri_smp_zcheripurecap
+    full_name: codasip x730-mp4 hobgoblin hardware platform for riscv64cheri_smp_zcheripurecap
+    vendor: codasip
+    socs:
+      - name: hobgoblin_x730_mp4_riscv64cheri

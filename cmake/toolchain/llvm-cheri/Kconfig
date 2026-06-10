@@ -58,6 +58,14 @@ config RISCV_ISA_ZCHERIPURECAP_ABI
 	  When building for CHERI this is used to select the CHERI RISC-V 0.9.5
 	  spec otherwise the default cambridge v8.0 spec is used
 
+config RISCV_ISA_ZCHERIHYBRID
+	bool "Build for hybrid CHERI RISC-V 0.9.5 spec"
+	default n
+	help
+	  When building for CHERI RISC-V 0.9.5 this is used when the target
+	  cores boot up in hybrid mode and require boot code to switch
+	  to purecap
+
 config CHERI_MEM_SLAB_RELAX_BLK_BOUNDS
 	bool "relax bounds overlap for internal blocks of a slab"
 	default n

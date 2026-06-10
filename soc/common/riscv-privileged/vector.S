@@ -25,9 +25,7 @@ GTEXT(_isr_wrapper)
 SECTION_FUNC(vectors, __start)
 #if defined(CONFIG_RISCV_GP)
 	/* Initialize global pointer */
-#ifdef __CHERI_PURE_CAPABILITY__
-	M_CMOVE	cgp, cnull
-#else
+#ifndef __CHERI_PURE_CAPABILITY__
 	.option push
 	.option norelax
 	la gp, __global_pointer$
@@ -50,8 +48,18 @@ SECTION_FUNC(vectors, __start)
 /*
  * for Zcheripurecap only, RISC-V 9.5 spec core starts in purecap mode.
  * we cannot switch or check modes for purecap only.
- * do nothing here.
  */
+ #ifdef CONFIG_RISCV_ISA_ZCHERIHYBRID
+/* If enter in hybrid mode (on Codasip hardware) immediately switch to purecap.
+ * when resets, CRE bit starts at 0 - cheri registers disabled
+ * in mseccfg (machine security configuration register),
+ * so we need to set this bit (bit 3) 8 in dec
+ * then switch the mode to purecap
+ */
+	csrsi mseccfg, 8
+	modesw.cap
+#endif /* CONFIG_RISCV_ISA_ZCHERIHYBRID */
+
 #else
 /*
 * V8.0 cambridge spec - put into purecap mode.
@@ -92,6 +100,9 @@ SECTION_FUNC(vectors, __start)
 	1:
 	.option pop
 #endif /* CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI */
+#if defined(CONFIG_RISCV_GP)
+M_CMOVE	cgp, cnull
+#endif
 #endif /* __CHERI_PURE_CAPABILITY__ */
 
 /* Bound PCC */
@@ -150,7 +161,10 @@ boundpcc:
 	M_CINCOFFSET ct0, ct0, t1
 	M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
 	M_CMOVE	ct1, cnull
+	/* MTDC not present on Codasip CHERI boards */
+#ifndef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
 	M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
+#endif
 #else
 	addi t0, t0, 0x03 /* Enable CLIC vectored mode by setting LSB */
 	csrw mtvec, t0
@@ -206,7 +220,10 @@ boundpcc:
 
 		M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
 		M_CMOVE	ct1, cnull
+		/* MTDC not present on Codasip CHERI boards */
+#ifndef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
 		M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
+#endif
 #else
 		la t0, _irq_vector_table /* Load address of interrupt vector table */
 		addi t0, t0, 0x01 /* Enable vectored mode by setting LSB */
@@ -225,7 +242,10 @@ boundpcc:
 
 	M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
 	M_CMOVE	ct1, cnull
+	/* MTDC not present on Codasip CHERI boards */
+#ifndef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
 	M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
+#endif
 #else
 	la t0, _isr_wrapper
 	addi t0, t0, 0x03 /* Set mode bits to 3, signifying CLIC. Everything else is reserved. */
@@ -245,7 +265,10 @@ boundpcc:
 		M_CLLC	ct0, _isr_wrapper
 		M_CSPECIALW M_MTCC, ct0 /*Machine trap code capability*/
 		M_CMOVE	ct1, cnull
+		/* MTDC not present on Codasip CHERI boards */
+#ifndef CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI
 		M_CSPECIALW M_MTDC, ct1 /*Machine trap data capability */
+#endif
 #else
 		la t0, _isr_wrapper
 		csrw mtvec, t0

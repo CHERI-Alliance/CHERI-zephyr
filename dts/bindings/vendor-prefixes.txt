@@ -147,6 +147,7 @@ cisco	Cisco Systems, Inc.
 cloudengines	Cloud Engines, Inc.
 cnm	Chips&Media, Inc.
 cnxt	Conexant Systems, Inc.
+codasip	Codasip
 colorfly	Colorful GRP, Shenzhen Xueyushi Technology Ltd.
 compulab	CompuLab Ltd.
 contextualelectronics	Contextual Electronics

@@ -1,0 +1,12 @@
+identifier: hobgoblin_riscv64cheri
+name: Codasip hobgoblin x730-mp4 hardware for RISC-V 64-bit
+type: mcu
+arch: riscv
+toolchain:
+  - llvm-cheri
+supported:
+  - uart
+testing:
+  ignore_tags:
+    - net
+    - bluetooth

@@ -12,11 +12,6 @@
 /* 1: CHERI-ISA V8.0 - see https://www.cl.cam.ac.uk/techreports/ ISSN 1476-2986 */
 /* 2: RISC-V Specification for CHERI Extensions  Version v0.9.5, 2025-02-14: Stable */
 
-/* support checks */
-#ifdef CONFIG_RISCV_ISA_ZCHERIHYBRID_ABI
-#error "This code does not yet support CHERI RISC-V hybrid. Check your -march and CONFIG settings"
-#endif
-
 /*-----------------------------------------------------------------------------------*/
 /* CAPABILITY MASKS */
 /*-----------------------------------------------------------------------------------*/

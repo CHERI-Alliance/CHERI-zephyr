@@ -486,8 +486,8 @@ config RISCV_ISA_ZCHERIPURECAP_ABI
 	help
 	  use with capabilities
 
-config RISCV_ISA_ZCHERIHYBRID_ABI
-	bool "For using codasip RISCV_ISA_ZCHERIHYBRID_ABI"
+config RISCV_ISA_ZCHERIHYBRID
+	bool "Codasip cpu boots in hybrid so execution switch to purecap required"
 	depends on CHERI
 	default n
 	help

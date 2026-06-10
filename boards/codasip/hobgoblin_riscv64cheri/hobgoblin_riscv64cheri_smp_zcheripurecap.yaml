@@ -1,0 +1,8 @@
+identifier: hobgoblin_riscv64cheri_smp_zcheripurecap
+name: Codasip hobgoblin x730-mp4 hardware for RISC-V 64-bit SMP with CHERI ZCHERIPURECAP
+type: mcu
+arch: riscv
+toolchain:
+  - llvm-cheri
+supported:
+  - uart

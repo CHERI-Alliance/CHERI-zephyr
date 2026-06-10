@@ -1,0 +1,10 @@
+# Copyright (c) 2026 University of Birmingham
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_FAMILY_HOBGOBLIN
+	bool
+
+config SOC_FAMILY
+	default "hobgoblin" if SOC_FAMILY_HOBGOBLIN
+
+rsource "*/Kconfig.soc"

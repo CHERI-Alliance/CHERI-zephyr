@@ -1,0 +1,106 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Added for CHERI 2026 by University of Birmingham */
+
+ /* A730 MP4 CPU default configuration with CHERI extensions. */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Frequency of timer (CLINT) */
+		timebase-frequency = <100000000>;
+
+		cpu0: cpu@0 {
+			compatible = "riscv";
+			device_type = "cpu";
+			reg = <0>;
+			riscv,isa-base = "rv64i";
+			riscv,isa =
+				"rv64imafdc_svpbmt_zicbom_zicboz_zicbop_zcheripurecap_zcherihybrid";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+			       "svpbmt", "zicbom", "zicboz", "zicbop",
+			       "zcheripurecap", "zcherihybrid";
+
+			status = "okay";
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+
+				status = "okay";
+			};
+		};
+
+		cpu1: cpu@1 {
+			compatible = "riscv";
+			device_type = "cpu";
+			reg = <1>;
+			riscv,isa-base = "rv64i";
+			riscv,isa =
+				"rv64imafdc_svpbmt_zicbom_zicboz_zicbop_zcheripurecap_zcherihybrid";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+			       "svpbmt", "zicbom", "zicboz", "zicbop",
+			       "zcheripurecap", "zcherihybrid";
+
+			status = "okay";
+
+			cpu1_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+
+				status = "okay";
+			};
+		};
+
+		cpu2: cpu@2 {
+			compatible = "riscv";
+			device_type = "cpu";
+			reg = <2>;
+			riscv,isa-base = "rv64i";
+			riscv,isa =
+				"rv64imafdc_svpbmt_zicbom_zicboz_zicbop_zcheripurecap_zcherihybrid";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+			       "svpbmt", "zicbom", "zicboz", "zicbop",
+			       "zcheripurecap", "zcherihybrid";
+
+			status = "okay";
+
+			cpu2_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+
+				status = "okay";
+			};
+		};
+
+		cpu3: cpu@3 {
+			compatible = "riscv";
+			device_type = "cpu";
+			reg = <3>;
+			riscv,isa-base = "rv64i";
+			riscv,isa =
+				"rv64imafdc_svpbmt_zicbom_zicboz_zicbop_zcheripurecap_zcherihybrid";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+			       "svpbmt", "zicbom", "zicboz", "zicbop",
+			       "zcheripurecap", "zcherihybrid";
+
+			status = "okay";
+
+			cpu3_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+
+				status = "okay";
+			};
+		};
+	};
+};

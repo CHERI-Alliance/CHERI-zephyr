@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Copyright (c) 2026 Added to support CHERI 2026, University of Birmingham */
+
+/dts-v1/;
+
+/* include cpu set up */
+#include <codasip/cpu-x730-mp4-cheri.dtsi>
+
+/* include soc and board components */
+/* plic,clint,uart0,soc */
+/* ddr */
+#include <codasip/hobgoblin-vcu118.dtsi>
+
+/ {
+	model = "Codasip Hobgoblin2 VCU118 X730-MP4";
+	compatible = "codasip,hobgoblin2-vcu118";
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,sram = &ddr;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

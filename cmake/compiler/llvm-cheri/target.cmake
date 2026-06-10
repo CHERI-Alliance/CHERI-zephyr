@@ -45,13 +45,22 @@ if(NOT "${ARCH}" STREQUAL "posix")
   elseif("${ARCH}" STREQUAL "riscv")
 	if(CONFIG_CHERI)
 		if(CONFIG_64BIT)
-			#if compiling for riscv64 CHERI-PURECAP
+		#if compiling for riscv64 CHERI-PURECAP
 			if(CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI)
 			#CHERI-PURECAP new RISC-V spec v0.9.5
 			message(STATUS, "Compiling for riscv64 CHERI-PURECAP new RISC-V spec v0.9.5")
-			string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
-			string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
-			string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+				if(CONFIG_RISCV_ISA_ZCHERIHYBRID)
+				#For cores that boot in hybrid mode we need to build for zcherihybrid (-march),
+				#whilst keeping the ABI for purecap (-mabi)
+				string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafdc_zcherihybrid -mabi=l64pc128d ")
+				string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafdc_zcherihybrid -mabi=l64pc128d ")
+				string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafdc_zcherihybrid -mabi=l64pc128d ")
+				else()
+				#otherwise we assume a fully purecap system
+				string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+				string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+				string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafdzcheripurecap -mabi=l64pc128d ")
+				endif()
 			else()
 			#CHERI-PURECAP Cambs spec v8.0
 			message(STATUS, "Compiling for riscv64 CHERI-PURECAP Cambs spec v8.0")
