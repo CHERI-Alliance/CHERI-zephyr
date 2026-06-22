@@ -1021,7 +1021,11 @@ static uintptr_t handler_bad_syscall(uintptr_t bad_id, uintptr_t arg2,
 	ARG_UNUSED(arg5);
 	ARG_UNUSED(arg6);
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	LOG_ERR("Bad system call id %" PRIuPTR " invoked", (unsigned long)bad_id);
+#else
 	LOG_ERR("Bad system call id %" PRIuPTR " invoked", bad_id);
+#endif
 	arch_syscall_oops(ssf);
 	CODE_UNREACHABLE; /* LCOV_EXCL_LINE */
 }

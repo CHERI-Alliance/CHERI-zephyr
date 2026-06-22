@@ -46,8 +46,13 @@ static bool check_add_partition(struct k_mem_domain *domain,
 #endif /* CONFIG_EXECUTE_XOR_WRITE */
 
 	if (part->size == 0U) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("zero sized partition at %p with base 0x%lx",
+			part, (unsigned long)part->start);
+#else
 		LOG_ERR("zero sized partition at %p with base 0x%lx",
 			part, part->start);
+#endif
 		return false;
 	}
 
@@ -55,8 +60,13 @@ static bool check_add_partition(struct k_mem_domain *domain,
 	pend = part->start + part->size;
 
 	if (pend <= pstart) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		LOG_ERR("invalid partition %p, wraparound detected. base 0x%lx size %zu",
+			part, (unsigned long)part->start, part->size);
+#else
 		LOG_ERR("invalid partition %p, wraparound detected. base 0x%lx size %zu",
 			part, part->start, part->size);
+#endif
 		return false;
 	}
 
@@ -75,9 +85,17 @@ static bool check_add_partition(struct k_mem_domain *domain,
 		dend = dstart + dpart->size;
 
 		if (pend > dstart && dend > pstart) {
-			LOG_ERR("partition %p base %lx (size %zu) overlaps existing base %lx (size %zu)",
+#ifdef __CHERI_PURE_CAPABILITY__
+			LOG_ERR("partition %p base %lx (size %zu) overlaps "
+				"existing base %lx (size %zu)",
+				part, (unsigned long)part->start, part->size,
+				(unsigned long)dpart->start, dpart->size);
+#else
+			LOG_ERR("partition %p base %lx (size %zu) overlaps "
+				"existing base %lx (size %zu)",
 				part, part->start, part->size,
 				dpart->start, dpart->size);
+#endif
 			return false;
 		}
 	}
@@ -189,8 +207,13 @@ int k_mem_domain_add_partition(struct k_mem_domain *domain,
 		goto unlock_out;
 	}
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	LOG_DBG("add partition base %lx size %zu to domain %p\n",
+		(unsigned long)part->start, part->size, domain);
+#else
 	LOG_DBG("add partition base %lx size %zu to domain %p\n",
 		part->start, part->size, domain);
+#endif
 
 	domain->partitions[p_idx].start = part->start;
 	domain->partitions[p_idx].size = part->size;
@@ -237,8 +260,13 @@ int k_mem_domain_remove_partition(struct k_mem_domain *domain,
 		goto unlock_out;
 	}
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	LOG_DBG("remove partition base %lx size %zu from domain %p\n",
+		(unsigned long)part->start, part->size, domain);
+#else
 	LOG_DBG("remove partition base %lx size %zu from domain %p\n",
 		part->start, part->size, domain);
+#endif
 
 #ifdef CONFIG_ARCH_MEM_DOMAIN_SYNCHRONOUS_API
 	ret = arch_mem_domain_partition_remove(domain, p_idx);
