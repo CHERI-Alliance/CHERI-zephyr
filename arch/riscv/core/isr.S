@@ -1006,8 +1006,7 @@ on_irq_stack:
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	M_CLLC ct0, _sw_isr_table
-	/* shift more as we are now using caps */
-	slli a0, a0, (RV_REGSHIFT + 2)
+	slli a0, a0, (RV_REGSHIFT + 1)
 	M_CINCOFFSET ct0, ct0, a0
 	#else
 	la t0, _sw_isr_table
@@ -1024,7 +1023,7 @@ on_irq_stack:
 
 	/* Load ISR function address in register t1 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	clc ct1, RV_REGSIZE*2(ct0) /* load cap at cap - register is twice the size*/
+	clc ct1, RV_REGSIZE(ct0)
 	#else
 	lr t1, RV_REGSIZE(t0)
 	#endif

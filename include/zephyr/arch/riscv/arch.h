@@ -144,11 +144,30 @@
 #endif /* CONFIG_PMP_POWER_OF_TWO_ALIGNMENT */
 
 #ifdef CONFIG_64BIT
-#define RV_REGSIZE  8
-#define RV_REGSHIFT 3
+    #ifdef __CHERI_PURE_CAPABILITY__
+    #define RV_REGSIZE  16
+    #else
+    #define RV_REGSIZE  8
+    #endif
+
+    #ifdef __CHERI_PURE_CAPABILITY__
+    #define RV_REGSHIFT 4
+    #else
+    #define RV_REGSHIFT 3
+    #endif
+
 #else
-#define RV_REGSIZE  4
-#define RV_REGSHIFT 2
+    #ifdef __CHERI_PURE_CAPABILITY__
+    #define RV_REGSIZE  8
+    #else
+    #define RV_REGSIZE  4
+    #endif
+
+    #ifdef __CHERI_PURE_CAPABILITY__
+    #define RV_REGSHIFT 3
+    #else
+    #define RV_REGSHIFT 2
+    #endif
 #endif
 
 /* Common mstatus bits. All supported cores today have the same
