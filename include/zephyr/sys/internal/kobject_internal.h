@@ -64,7 +64,11 @@ struct k_object {
 	uint8_t type;
 	uint8_t flags;
 	union k_object_data data;
+#ifdef __CHERI_PURE_CAPABILITY__
+};
+#else
 } __packed __aligned(4);
+#endif
 
 struct k_object_assignment {
 	struct k_thread *thread;
