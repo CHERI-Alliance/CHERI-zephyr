@@ -35,7 +35,11 @@ extern "C" {
  */
 BUILD_ASSERT(sizeof(int32_t) == sizeof(int));
 BUILD_ASSERT(sizeof(int64_t) == sizeof(long long));
+#ifdef __CHERI_PURE_CAPABILITY__
+BUILD_ASSERT(sizeof(intptr_t) == sizeof(void *));
+#else
 BUILD_ASSERT(sizeof(intptr_t) == sizeof(long));
+#endif
 
 /**
  * @brief Kernel APIs
