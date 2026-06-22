@@ -246,7 +246,7 @@ SECTION_FUNC(exception.entry, _isr_wrapper)
 	.option push
 	.option norelax
 	#ifdef __CHERI_PURE_CAPABILITY__
-	cllc cgp, __global_pointer$
+	M_CLLC cgp, __global_pointer$
 	#else
 	la gp, __global_pointer$
 	#endif
