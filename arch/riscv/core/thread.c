@@ -268,9 +268,9 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry, void *p1, v
 	register void *ca2 __asm__("ca2") = p2;
 	register void *ca3 __asm__("ca3") = p3;
 
-	__asm__ volatile("#M_CMOVE csp, %4; mret"
+	__asm__ volatile(STRINGIFY(M_CMOVE)" csp, %4; mret"
 			 :
-			 : "r"(ca0), "r"(ca1), "r"(ca2), "r"(ca3), "r"(top_of_user_stack)
+			 : "C"(ca0), "C"(ca1), "C"(ca2), "C"(ca3), "C"(top_of_user_stack)
 			 : "memory");
 #else
 	register void *a0 __asm__("a0") = user_entry;
