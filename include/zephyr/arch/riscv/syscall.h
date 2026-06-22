@@ -56,8 +56,8 @@ static inline uintptr_t arch_syscall_invoke6(uintptr_t arg1, uintptr_t arg2, uin
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
 	__asm__ volatile("ecall"
-			 : "+r"(ca0)
-			 : "r"(ca1), "r"(ca2), "r"(ca3), "r"(ca4), "r"(ca5), "r"(ct0)
+			 : "+C"(ca0)
+			 : "C"(ca1), "C"(ca2), "C"(ca3), "C"(ca4), "C"(ca5), "C"(ct0)
 			 : "memory");
 	return ca0;
 #else
@@ -89,8 +89,8 @@ static inline uintptr_t arch_syscall_invoke5(uintptr_t arg1, uintptr_t arg2, uin
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
 	__asm__ volatile("ecall"
-			 : "+r"(ca0)
-			 : "r"(ca1), "r"(ca2), "r"(ca3), "r"(ca4), "r"(ct0)
+			 : "+C"(ca0)
+			 : "C"(ca1), "C"(ca2), "C"(ca3), "C"(ca4), "C"(ct0)
 			 : "memory");
 	return ca0;
 #else
@@ -119,7 +119,7 @@ static inline uintptr_t arch_syscall_invoke4(uintptr_t arg1, uintptr_t arg2, uin
 	register uintptr_t ca3 __asm__("ca3") = arg4;
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
-	__asm__ volatile("ecall" : "+r"(ca0) : "r"(ca1), "r"(ca2), "r"(ca3), "r"(ct0) : "memory");
+	__asm__ volatile("ecall" : "+C"(ca0) : "C"(ca1), "C"(ca2), "C"(ca3), "C"(ct0) : "memory");
 	return ca0;
 #else
 	register unsigned long a0 __asm__("a0") = arg1;
@@ -142,7 +142,7 @@ static inline uintptr_t arch_syscall_invoke3(uintptr_t arg1, uintptr_t arg2, uin
 	register uintptr_t ca2 __asm__("ca2") = arg3;
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
-	__asm__ volatile("ecall" : "+r"(ca0) : "r"(ca1), "r"(ca2), "r"(ct0) : "memory");
+	__asm__ volatile("ecall" : "+C"(ca0) : "C"(ca1), "C"(ca2), "C"(ct0) : "memory");
 	return ca0;
 #else
 	register unsigned long a0 __asm__("a0") = arg1;
@@ -163,7 +163,7 @@ static inline uintptr_t arch_syscall_invoke2(uintptr_t arg1, uintptr_t arg2, uin
 	register uintptr_t ca1 __asm__("ca1") = arg2;
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
-	__asm__ volatile("ecall" : "+r"(ca0) : "r"(ca1), "r"(ct0) : "memory");
+	__asm__ volatile("ecall" : "+C"(ca0) : "C"(ca1), "C"(ct0) : "memory");
 	return ca0;
 #else
 	register unsigned long a0 __asm__("a0") = arg1;
@@ -181,7 +181,7 @@ static inline uintptr_t arch_syscall_invoke1(uintptr_t arg1, uintptr_t call_id)
 	register uintptr_t ca0 __asm__("ca0") = arg1;
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
-	__asm__ volatile("ecall" : "+r"(ca0) : "r"(ct0) : "memory");
+	__asm__ volatile("ecall" : "+C"(ca0) : "C"(ct0) : "memory");
 	return ca0;
 #else
 	register unsigned long a0 __asm__("a0") = arg1;
@@ -198,7 +198,7 @@ static inline uintptr_t arch_syscall_invoke0(uintptr_t call_id)
 	register uintptr_t ca0 __asm__("ca0");
 	register uintptr_t ct0 __asm__("ct0") = call_id;
 
-	__asm__ volatile("ecall" : "=r"(ca0) : "r"(ct0) : "memory");
+	__asm__ volatile("ecall" : "=C"(ca0) : "C"(ct0) : "memory");
 	return ca0;
 #else
 	register unsigned long a0 __asm__("a0");
