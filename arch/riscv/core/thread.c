@@ -254,7 +254,11 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry, void *p1, v
 	z_riscv_pmp_usermode_enable(_current);
 
 	/* preserve stack pointer for next exception entry */
+#ifdef __CHERI_PURE_CAPABILITY__
+	arch_curr_cpu()->arch.user_exc_csp = top_of_priv_stack;
+#else
 	arch_curr_cpu()->arch.user_exc_sp = top_of_priv_stack;
+#endif
 
 	is_user_mode = true;
 
