@@ -1,0 +1,9 @@
+# Copyright (c) 2026 University of Birmingham
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_HOBGOBLIN_V739_RISCV32CHERI
+	bool
+	select SOC_FAMILY_HOBGOBLIN
+
+config SOC
+	default "hobgoblin_v739_riscv32cheri" if SOC_HOBGOBLIN_V739_RISCV32CHERI

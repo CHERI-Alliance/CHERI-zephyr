@@ -1,0 +1,47 @@
+# Copyright (c) 2026 University of Birmingham
+# SPDX-License-Identifier: Apache-2.0
+
+#configs for 32 bit only
+
+if SOC_HOBGOBLIN_V739_RISCV32CHERI
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default 50000000
+
+config SYS_CLOCK_TICKS_PER_SEC
+	default 100
+
+#turn off for a consistent time timer interrupt
+config TICKLESS_KERNEL
+	default n
+
+config MP_MAX_NUM_CPUS
+	default 1
+
+#setting this to y can cause a crash on the
+#codasip-prime qemu when writing to mip
+config RISCV_SOC_INTERRUPT_INIT
+	default n
+
+config FPU
+	default y if CPU_HAS_FPU
+
+config RISCV_HAS_CLIC
+	default y
+
+#use codasip specific driver
+config CODASIP_CLIC
+	default y
+
+# CLIC changes upper fields to mcause register so we need a new mask
+config RISCV_MCAUSE_EXCEPTION_MASK
+	default 0xFFF
+
+config ARCH_SW_ISR_TABLE_ALIGN
+	default 64
+
+# clic irqs
+config NUM_IRQS
+	default 128
+
+endif

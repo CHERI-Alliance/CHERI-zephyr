@@ -1,0 +1,12 @@
+boards:
+
+  - name: hobgoblin_riscv32cheri
+    full_name: codasip v739 hobgoblin hardware platform for riscv32cheri
+    vendor: codasip
+    socs:
+      - name: hobgoblin_v739_riscv32cheri
+  - name: hobgoblin_riscv32cheri_zcheripurecap
+    full_name: codasip v739 hobgoblin hardware platform for riscv32cheri_zcheripurecap
+    vendor: codasip
+    socs:
+      - name: hobgoblin_v739_riscv32cheri

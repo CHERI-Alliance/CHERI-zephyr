@@ -9,7 +9,7 @@
 /* include soc and board components */
 /* plic,clint,uart0,soc */
 /* ddr */
-#include <codasip/hobgoblin-vcu118.dtsi>
+#include <codasip/hobgoblin-vcu118-for-x730.dtsi>
 
 / {
 	model = "Codasip Hobgoblin2 VCU118 X730-MP4";

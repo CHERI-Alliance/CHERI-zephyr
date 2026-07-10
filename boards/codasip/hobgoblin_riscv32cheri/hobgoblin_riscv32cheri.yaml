@@ -1,0 +1,12 @@
+identifier: hobgoblin_riscv32cheri
+name: Codasip hobgoblin v739 hardware for RISC-V 32-bit
+type: mcu
+arch: riscv
+toolchain:
+  - llvm-cheri
+supported:
+  - uart
+testing:
+  ignore_tags:
+    - net
+    - bluetooth

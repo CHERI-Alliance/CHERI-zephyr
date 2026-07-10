@@ -1,0 +1,71 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Added for CHERI 2026 by University of Birmingham */
+
+/* soc and board */
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	ddr: memory@80000000 {
+	device_type = "memory";
+	reg = <0x0 0x80000000 0x1 0x00000000>;
+	};
+
+	soc: soc@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x0 0x0 0x80000000>;
+		dma-noncoherent;
+
+		/* codasip clic driver */
+
+		clic: clic@40000 {
+			compatible = "codasip,clic";
+			reg = <0x40000 0x0004
+				0x41000 0x1000>;
+			#address-cells = <0>;
+			#interrupt-cells = <3>; /* Int#, IntLvl, Trigger */
+
+			interrupt-controller;
+			num-interrupt = <128>; /* CLIC_NUM_INTERRUPT = 128 */
+			intctlbits = <8>; /* CLICINTCTLBITS = 8 bits */
+			status= "okay";
+		};
+
+
+		clint: clint@10804000 {
+			compatible = "riscv,clint0", "sifive,clint0";
+			reg = <0x10804000 0x1BFF8>;
+			interrupts-extended = < &clic 0 1 0 &clic 1 1 0 >; /* M-SWI , M-TIMER */
+		};
+
+		/* v4.1 of zephyr requires mtimer node to be present in dtsi file with clint */
+
+		mtimer: timer@1080fff8 {
+			compatible = "riscv,machine-timer";
+			reg = <0x1080fff8 0x8 0x10808000 0x8000>;
+			reg-names = "mtime", "mtimecmp";
+			/* CLIC Interrupt 1, priority 1, trigger 0. */
+			interrupts-extended = <	&clic 1 1 0 >;
+		};
+
+		uart0: uart@10101000 {
+			/* ns16550a - zephyr notation uses ns16550 */
+			compatible = "ns16550";
+			reg = <0x10101000 0x1000>;
+			clock-frequency = <100000000>;
+			current-speed = <115200>;
+			/* zephyr docs: num of interrupt cells should be set to 2: irq, priority */
+			reg-shift = <2>;
+			/* include the priority */
+			/* CLIC Interrupt 2, priority 1, trigger 0. */
+			interrupts-extended = <&clic 2 1 0>;
+		};
+	};
+};

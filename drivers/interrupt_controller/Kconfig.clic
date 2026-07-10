@@ -10,6 +10,14 @@ config CLIC
 	  Core Local Interrupt Controller provide low-latency, vectored,
 	  preemptive interrupts for RISC-V systems.
 
+config CODASIP_CLIC
+	bool "Codasip Core Local Interrupt Controller (CLIC)"
+	default y
+	depends on DT_HAS_CODASIP_CLIC_ENABLED
+	select RISCV_SOC_HAS_CUSTOM_IRQ_HANDLING if !RISCV_VECTORED_MODE
+	help
+	  Interrupt controller for Codasip SoC core.
+
 config NUCLEI_ECLIC
 	bool "Enhanced Core Local Interrupt Controller (ECLIC)"
 	default y

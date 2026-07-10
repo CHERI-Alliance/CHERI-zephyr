@@ -1,0 +1,35 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Added for CHERI 2026 by University of Birmingham */
+
+ /* V739 CPU default configuration with CHERI extensions. */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			compatible = "riscv";
+			device_type = "cpu";
+			reg = <0>;
+			riscv,isa-base = "rv32i";
+			riscv,isa =
+				"rv32imafdc_svpbmt_zicbom_zicboz_zicbop_zcheripurecap_zcherihybrid";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+			       "svpbmt", "zicbom", "zicboz", "zicbop",
+			       "zcheripurecap", "zcherihybrid";
+			status = "okay";
+
+			/* CPU’s input port where interrupts arrive */
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+
+				status = "okay";
+			};
+		};
+	};
+};

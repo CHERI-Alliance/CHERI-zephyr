@@ -1,4 +1,5 @@
 family:
 - name: hobgoblin
   socs:
+  - name: hobgoblin_v739_riscv32cheri
   - name: hobgoblin_x730_mp4_riscv64cheri

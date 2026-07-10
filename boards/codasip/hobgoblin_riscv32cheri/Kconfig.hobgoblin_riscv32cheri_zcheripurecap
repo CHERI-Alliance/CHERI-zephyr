@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Added to support CHERI 2026, University of Birmingham
+
+config BOARD_HOBGOBLIN_RISCV32CHERI_ZCHERIPURECAP
+	select SOC_HOBGOBLIN_V739_RISCV32CHERI

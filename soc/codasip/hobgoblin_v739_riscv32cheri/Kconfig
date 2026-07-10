@@ -1,10 +1,9 @@
 # Copyright (c) 2026 University of Birmingham
 # SPDX-License-Identifier: Apache-2.0
 
-config SOC_HOBGOBLIN_X730_MP4_RISCV64CHERI
-	select 64BIT
-	select CPU_HAS_FPU_DOUBLE_PRECISION
-	select RISCV_ISA_RV64I
+config SOC_HOBGOBLIN_V739_RISCV32CHERI
+	select CPU_HAS_FPU
+	select RISCV_ISA_RV32I
 	select RISCV_ISA_EXT_ZICSR
 	select RISCV_ISA_EXT_ZIFENCEI
-	select RISCV_HAS_PLIC
+	select RISCV_HAS_CLIC

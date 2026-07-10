@@ -4,15 +4,15 @@
 /dts-v1/;
 
 /* include cpu set up */
-#include <codasip/cpu-x730-mp4-cheri.dtsi>
+#include <codasip/cpu-v739-cheri.dtsi>
 
 /* include soc and board components */
-/* plic,clint,uart0,soc */
+/* clic,clint,uart0,soc */
 /* ddr */
-#include <codasip/hobgoblin-vcu118-for-x730.dtsi>
+#include <codasip/hobgoblin-vcu118-for-v739.dtsi>
 
 / {
-	model = "Codasip Hobgoblin2 VCU118 X730-MP4";
+	model = "Codasip Hobgoblin2 VCU118 V739";
 	compatible = "codasip,hobgoblin2-vcu118";
 	chosen {
 		zephyr,console = &uart0;

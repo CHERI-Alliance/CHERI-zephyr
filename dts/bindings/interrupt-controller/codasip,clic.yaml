@@ -1,0 +1,36 @@
+# Copyright (c) 2024 Codasip s.r.o.
+# SPDX-License-Identifier: Apache-2.0
+
+description: Codasip Core Level Interrupt Controller (CLIC)
+
+compatible: "codasip,clic"
+
+include: [interrupt-controller.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  "#interrupt-cells":
+    const: 3
+
+  num-interrupt:
+    type: int
+    description: Number interrupts supported (CLIC_NUM_INTERRUPT = 4, 8, 16, 32, 64, 128, 256, 512)
+    required: true
+  intctlbits:
+    type: int
+    description: Number of bits implemented in clicintctl[i] registers (CLICINTCTLBITS = 0-8)
+    required: true
+
+# irq      -IRQ number = 0 to (num-interrupt - 1)
+# priority -Used as CLIC interrupt level (not CLIC priority, which is not used in this driver)
+# flags    -This is CLIC trig[1:0] bits, but most IRQ_CONNECT()s don't use it and set to 0.
+#              If required, update required device driver(s) IRQ_CONNECT() to get and use 'flags'
+#              from the Device Tree, e.g.:
+#              IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), my_isr,
+#                DEVICE_DT_INST_GET(n), DT_INST_IRQ(n, flags));
+interrupt-cells:
+  - irq
+  - priority
+  - flags
