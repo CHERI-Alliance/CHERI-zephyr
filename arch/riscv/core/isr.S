@@ -971,7 +971,7 @@ on_irq_stack:
 
 #ifdef CONFIG_RISCV_SOC_HAS_CUSTOM_IRQ_HANDLING
 	#ifdef __CHERI_PURE_CAPABILITY__
-	ccall __soc_handle_all_irqs
+	M_CCALL __soc_handle_all_irqs
 	#else
 	call __soc_handle_all_irqs
 	#endif

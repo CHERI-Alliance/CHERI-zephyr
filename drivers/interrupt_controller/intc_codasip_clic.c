@@ -28,7 +28,12 @@
 #include <zephyr/sw_isr_table.h>
 #include <zephyr/drivers/interrupt_controller/riscv_clic.h>
 #include <zephyr/irq.h>
-#include <zephyr/arch/riscv/csr.h>
+#include <zephyr/arch/riscv/csr.h> /* csr_read / csr_write*/
+
+#ifdef __CHERI_PURE_CAPABILITY__
+/* cheri_build_device_cap */
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h>
+#endif
 
 /* CLIC Mode for MTVT CSR Register */
 #define MTVEC_CLIC_MODE (3U)
@@ -44,18 +49,65 @@
 
 /* This driver is (currently) for the Codasip CLIC Configuration
  * on the hobgoblin soc.
+ *
+ *   Other configuration:
+ *   M mode only, so nmbits == 0
+ *   smclicconfig is always present in Codasip's CLIC component
+ *   CLIC Interrupts start at 0 (not 16)
+ *
+ * M-mode CLIC memory map - Total max size 0x5000
+ * The CLIC memory map supports up to 4096 total interrupt inputs
+ * The number of interrupt inputs in this driver is defined by CLIC_NUM_INTERRUPT
+ * Offset	size@addr	perm	name
+ * 0x0000	1B		RW	cliccfg
+ * 0x0004	4B		R	clicinfo
+ *
+ * 0x1000+4*i	1B/interrupt	R/RW	clicintip[i]
+ * 0x1000+4*i	1B/interrupt	RW	clicintie[i]
+ * 0x1000+4*i	1B/interrupt	RW	clicintattr[i]
+ * 0x1000+4*i	1B/interrupt	RW	clicintctl[i]
+ * ...
+ * 0x4FFC	1B/interrupt	R/RW	clicintip[4095]
+ * 0x4FFD	1B/interrupt	RW	clicintie[4095]
+ * 0x4FFE	1B/interrupt	RW	clicintattr[4095]
+ * 0x4FFF	1B/interrupt	RW	clicintctl[4095]
+ *
+ */
 
-    Other configuration:
-    M mode only, so nmbits == 0
-    smclicconfig is always present in Codasip's CLIC component
-    CLIC Interrupts start at 0 (not 16)
-*/
+ /*
+  * For CHERI we need to set the base address as a capability
+  *  with the correct bounds and permissions
+  * Permissions are set on the device memory mmdev_root_cap.
+  *
+  * For non-CHERI, the structure holding memory mapped addresses is defined as a static
+  * constant where the base address is initialised into the structure statically with a
+  * fixed address.
+  * In the CHERI version we assign the capability addresses dynamically at
+  * run-time by reducing the bounds of the device memory map space. we create the
+  * structure as being non-constant, so it can be updated with the correct capabilities
+  * at run-time during initialisation.
+  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Get some of the CLIC configuration from the Device Tree */
+#define CLIC_NUM_INTERRUPT  (DT_PROP(DT_NODELABEL(clic), num_interrupt))
+#define CLICINTCTLBITS      (DT_PROP(DT_NODELABEL(clic), intctlbits))
+#define CLICCFG_ADDR_INT    (DT_REG_ADDR_BY_IDX(DT_NODELABEL(clic), 0))
+#define CLICINT_ADDR_INT    (DT_REG_ADDR_BY_IDX(DT_NODELABEL(clic), 1))
+/* Get sizes */
+#define CLICCFG_SIZE (DT_REG_SIZE_BY_IDX(DT_NODELABEL(clic), 0))
+#define CLICINT_SIZE (DT_REG_SIZE_BY_IDX(DT_NODELABEL(clic), 1))
 
+/* Create caps - run-time*/
+#define CLICCFG_ADDR (uintptr_t)cheri_build_device_cap(CLICCFG_ADDR_INT, CLICCFG_SIZE)
+#define CLICINT_ADDR (uintptr_t)cheri_build_device_cap(CLICINT_ADDR_INT, CLICINT_SIZE)
+
+#else
 /* Get some of the CLIC configuration from the Device Tree */
 #define CLIC_NUM_INTERRUPT  (DT_PROP(DT_NODELABEL(clic), num_interrupt))
 #define CLICINTCTLBITS      (DT_PROP(DT_NODELABEL(clic), intctlbits))
 #define CLICCFG_ADDR        (DT_REG_ADDR_BY_IDX(DT_NODELABEL(clic), 0))
 #define CLICINT_ADDR        (DT_REG_ADDR_BY_IDX(DT_NODELABEL(clic), 1))
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /* From the CLIC table:
  * The smclicconfig extension uses the following scheme for implementations
@@ -310,10 +362,32 @@ typedef union {
 	uint32_t reg;
 } clicint_t;
 
+/* CHERI run-time patch function to add capability addresses.
+ * It is called by codasip_clic_init during initialisation.
+ */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Set at run-time */
+static volatile xcliccfg_t *xcliccfg;
+static volatile clicint_t (*clicint)[CLIC_NUM_INTERRUPT];
+
+static void clic_runtime_patch(void)
+{
+		xcliccfg =
+			(volatile xcliccfg_t *)CLICCFG_ADDR;
+
+		clicint =
+			(volatile clicint_t (*)[CLIC_NUM_INTERRUPT])
+				CLICINT_ADDR;
+}
+
+#else
+/* Set at compile-time */
 static volatile xcliccfg_t *xcliccfg = (volatile xcliccfg_t *) CLICCFG_ADDR;
 
 static volatile clicint_t (*clicint)[CLIC_NUM_INTERRUPT] =
 	(volatile clicint_t (*)[]) (CLICINT_ADDR);
+
+#endif	/* __CHERI_PURE_CAPABILITY__ */
 
 /* Interrupt enable */
 void riscv_clic_irq_enable(uint32_t irq)
@@ -382,6 +456,11 @@ void riscv_clic_irq_set_pending(uint32_t irq)
 
 static int codasip_clic_init(const struct device *dev)
 {
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	clic_runtime_patch();
+#endif
+
 	int i;
 
 	/* Reset the CLIC */
@@ -416,8 +495,16 @@ static int codasip_clic_init(const struct device *dev)
 	 * NBASE = xtvec[XLEN-1:6]<<6 # CLIC mode vector base is at least 64-byte aligned.
 	 * TBASE = xtvt[XLEN-1:6]<<6  # Software trap vector table base is at least 64-byte aligned.
 	 */
+#ifdef __CHERI_PURE_CAPABILITY__
 
+	uintptr_t mtvecc_val;
+
+	mtvecc_val = csr_cap_read(M_MTCC);
+	csr_cap_write(M_MTCC, (mtvecc_val & 0xFFFFFFC0) | MTVEC_CLIC_MODE);
+
+#else
 	csr_write(mtvec, ((csr_read(mtvec) & 0xFFFFFFC0) | MTVEC_CLIC_MODE));
+#endif /* #ifdef __CHERI_PURE_CAPABILITY__ */
 
 	/* We are going to use only CLIC Interrupt Levels (no Priority).
 	 *
