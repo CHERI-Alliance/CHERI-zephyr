@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -27,7 +28,12 @@
 LOG_MODULE_REGISTER(test);
 
 struct k_thread tdata;
+#ifdef __CHERI_PURE_CAPABILITY__
+/* Increase stack sizes to store caps */
+#define STACK_SIZE (1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#else
 #define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#endif
 K_THREAD_STACK_DEFINE(tstack, STACK_SIZE);
 size_t tstack_size = K_THREAD_STACK_SIZEOF(tstack);
 
@@ -38,7 +44,17 @@ static struct k_thread tdata_custom;
 static struct k_thread tdata_name;
 
 static int main_prio;
+
+#ifdef CONFIG_TOOLCHAIN_LLVM_CHERI
+/* llvm-cheri was not honouring the section request without this addition
+ * however this might also be some special symbol codegen bug
+ * because the following also worked and resolved correctly when tp was renamed to tp2
+ * static ZTEST_DMEM int tp2 = 10;
+ */
+static __attribute__((used)) ZTEST_DMEM int tp = 10;
+#else
 static ZTEST_DMEM int tp = 10;
+#endif
 
 /**
  * @ingroup kernel_thread_tests
@@ -61,6 +77,29 @@ ZTEST(threads_lifecycle, test_systhreads_idle)
 		     K_IDLE_PRIO, NULL);
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/*
+ * For CHERI we shouldn't cast integers to pointers
+ * so here we better reflect the API's documented type (void *)
+ * while preserving the original intent of verifying that custom
+ * thread data is stored and retrieved correctly.
+ */
+static void customdata_entry(void *p1, void *p2, void *p3)
+{
+	long data = 1U;
+
+	zassert_is_null(k_thread_custom_data_get(), NULL);
+	while (1) {
+		k_thread_custom_data_set(&data);
+		/* relinquish cpu for a while */
+		k_msleep(50);
+		/** TESTPOINT: custom data comparison */
+		zassert_equal_ptr(&data, k_thread_custom_data_get());
+		zassert_equal(data, *(long *)k_thread_custom_data_get());
+		data++;
+	}
+}
+#else
 static void customdata_entry(void *p1, void *p2, void *p3)
 {
 	long data = 1U;
@@ -75,6 +114,7 @@ static void customdata_entry(void *p1, void *p2, void *p3)
 		data++;
 	}
 }
+#endif
 
 /**
  * @ingroup kernel_thread_tests
@@ -286,8 +326,14 @@ enum control_method {
 
 static void join_entry(void *p1, void *p2, void *p3)
 {
+#ifdef __CHERI_PURE_CAPABILITY__
+/* CHERI does not support creating capabilities from
+ * provenance-free integer values.
+ */
+	enum control_method m = *(enum control_method *)p1;
+#else
 	enum control_method m = (enum control_method)(intptr_t)p1;
-
+#endif
 	switch (m) {
 	case TIMEOUT:
 	case NO_WAIT:
@@ -329,10 +375,18 @@ static int join_scenario_interval(enum control_method m, int64_t *interval)
 	int ret = 0;
 
 	LOG_DBG("ztest_thread: method %d, create join_thread", m);
+#ifdef __CHERI_PURE_CAPABILITY__
+/* CHERI does not support creating capabilities from
+ * provenance-free integer values.
+ */
+	k_thread_create(&join_thread, join_stack, STACK_SIZE, join_entry,
+			&m, NULL, NULL, K_PRIO_PREEMPT(1),
+			K_USER | K_INHERIT_PERMS, K_NO_WAIT);
+#else
 	k_thread_create(&join_thread, join_stack, STACK_SIZE, join_entry,
 			(void *)m, NULL, NULL, K_PRIO_PREEMPT(1),
 			K_USER | K_INHERIT_PERMS, K_NO_WAIT);
-
+#endif
 	switch (m) {
 	case ALREADY_EXIT:
 	case ISR_ALREADY_EXIT:

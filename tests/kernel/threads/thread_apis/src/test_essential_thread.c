@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,8 +15,11 @@
 
 struct k_thread kthread_thread;
 struct k_thread kthread_thread1;
-
+#ifdef __CHERI_PURE_CAPABILITY__
+#define STACKSIZE (2048 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#else
 #define STACKSIZE (1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#endif
 K_THREAD_STACK_DEFINE(kthread_stack, STACKSIZE);
 K_SEM_DEFINE(sync_sem, 0, 1);
 
