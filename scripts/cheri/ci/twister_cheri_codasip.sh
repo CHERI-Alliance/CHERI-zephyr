@@ -76,6 +76,7 @@
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
+-s tests/kernel/threads/tls/kernel.threads.tls.userspace \
 -s tests/subsys/logging/log_output/logging.output \
 -s tests/subsys/logging/log_output/logging.output.ts64 \
 -s tests/subsys/logging/log_output/logging.output.ts64.date \
@@ -131,6 +132,7 @@
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
+-s tests/kernel/threads/tls/kernel.threads.tls.userspace \
 -s tests/subsys/logging/log_output/logging.output \
 -s tests/subsys/logging/log_output/logging.output.ts64 \
 -s tests/subsys/logging/log_output/logging.output.ts64.date \

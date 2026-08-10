@@ -122,6 +122,14 @@ if(NOT "${ARCH}" STREQUAL "posix")
     message(STATUS, "default arch found")
   endif()
 
+  #for non-cheri 64-bit userspace, clang emits constant into .sdata (.LCPI4_0), whereas the Zephyr toolchain emits it into .srodata.cst8.
+  #Under PMP userspace, the .sdata placement is not accessible to the user thread, causing load access faults
+  if("${ARCH}" STREQUAL "riscv")
+	if(CONFIG_64BIT AND CONFIG_USERSPACE)
+		list(APPEND TOOLCHAIN_C_FLAGS "-msmall-data-limit=0")
+	endif()
+  endif()
+
   message(STATUS, "triple : ${triple}")
   message(STATUS, "ARCH append: ${ARCH}")
   message(STATUS, "TOOLCHAIN_C_FLAGS append: ${TOOLCHAIN_C_FLAGS}")
