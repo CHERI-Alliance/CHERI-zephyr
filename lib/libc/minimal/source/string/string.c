@@ -241,6 +241,103 @@ int memcmp(const void *m1, const void *m2, size_t n)
  * @return pointer to destination buffer <d>
  */
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* when building for CHERI we need to move whole
+ * aligned capabilities to preserve tags.
+ */
+void *memmove(void *d, const void *s, size_t n)
+{
+	unsigned char *d_byte = (unsigned char *)d;
+	const unsigned char *s_byte = (const unsigned char *)s;
+
+	const uintptr_t cap_mask = sizeof(void *) - 1;
+
+	if ((size_t)(d_byte - s_byte) < n) {
+		/*
+		 * The <src> buffer overlaps with the start of the <dest> buffer.
+		 * Copy backwards to prevent the premature corruption of <src>.
+		 */
+
+		d_byte += n;
+		s_byte += n;
+
+		/* attempt cap-sized copying only if buffers have identical alignment */
+		if ((((uintptr_t)d_byte & (size_t)cap_mask) ==
+		     ((uintptr_t)s_byte & (size_t)cap_mask))) {
+
+			/* do byte-sized copying until cap-aligned or finished */
+			while (((uintptr_t)d_byte & (size_t)cap_mask) != 0) {
+				if (n == 0) {
+					return d;
+				}
+
+				n--;
+				*(--d_byte) = *(--s_byte);
+			}
+
+			/* do cap-sized copying as long as possible */
+			void **d_cap = (void **)d_byte;
+			void * const *s_cap =
+				(void * const *)s_byte;
+
+			while (n >= sizeof(void *)) {
+				--d_cap;
+				--s_cap;
+
+				*d_cap = *s_cap;
+				n -= sizeof(void *);
+			}
+
+			d_byte = (unsigned char *)d_cap;
+			s_byte = (const unsigned char *)s_cap;
+		}
+
+		/* do byte-sized copying until finished */
+		while (n > 0) {
+			n--;
+			*(--d_byte) = *(--s_byte);
+		}
+	} else {
+		/* It is safe to perform a forward-copy */
+
+		/* attempt cap-sized copying only if buffers have identical alignment */
+		if ((((uintptr_t)d_byte & (size_t)cap_mask) ==
+		     ((uintptr_t)s_byte & (size_t)cap_mask))) {
+
+			/* do byte-sized copying until cap-aligned or finished */
+			while (((uintptr_t)d_byte & (size_t)cap_mask) != 0) {
+				if (n == 0) {
+					return d;
+				}
+
+				*(d_byte++) = *(s_byte++);
+				n--;
+			}
+
+			/* do cap-sized copying as long as possible */
+			void **d_cap = (void **)d_byte;
+			void * const *s_cap =
+				(void * const *)s_byte;
+
+			while (n >= sizeof(void *)) {
+				*(d_cap++) = *(s_cap++);
+				n -= sizeof(void *);
+			}
+
+			d_byte = (unsigned char *)d_cap;
+			s_byte = (const unsigned char *)s_cap;
+		}
+
+		/* do byte-sized copying until finished */
+		while (n > 0) {
+			*(d_byte++) = *(s_byte++);
+			n--;
+		}
+	}
+
+	return d;
+}
+#else
 void *memmove(void *d, const void *s, size_t n)
 {
 	char *dest = d;
@@ -268,6 +365,7 @@ void *memmove(void *d, const void *s, size_t n)
 
 	return d;
 }
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  *
@@ -275,7 +373,58 @@ void *memmove(void *d, const void *s, size_t n)
  *
  * @return pointer to start of destination buffer
  */
+#ifdef __CHERI_PURE_CAPABILITY__
+/* when building for CHERI we need to copy whole
+ * aligned capabilities to preserve tags.
+ */
+void *memcpy(void *ZRESTRICT d, const void *ZRESTRICT s, size_t n)
+{
 
+	/* attempt cap-sized copying only if buffers have identical alignment */
+
+	unsigned char *d_byte = (unsigned char *)d;
+	const unsigned char *s_byte = (const unsigned char *)s;
+
+	const uintptr_t cap_mask = sizeof(void *) - 1;
+
+	if (((uintptr_t)d & (size_t)cap_mask) == ((uintptr_t)s_byte & (size_t)cap_mask)) {
+
+		/* do byte-sized copying until cap-aligned or finished */
+
+		while ((((uintptr_t)d_byte) & (size_t)cap_mask) != 0) {
+			if (n == 0) {
+				return d;
+			}
+
+		*(d_byte++) = *(s_byte++);
+		n--;
+		}
+
+		/* do cap-sized copying as long as possible */
+
+		void **d_cap = (void **)d_byte;
+		void * const *s_cap =
+			(void * const *)s_byte;
+
+		while (n >= sizeof(void *)) {
+			*(d_cap++) = *(s_cap++);
+			n -= sizeof(void *);
+		}
+
+		d_byte = (unsigned char *)d_cap;
+		s_byte = (unsigned char *)s_cap;
+	}
+
+	/* do byte-sized copying until finished */
+
+	while (n > 0) {
+		*(d_byte++) = *(s_byte++);
+		n--;
+	}
+
+	return d;
+}
+#else
 void *memcpy(void *ZRESTRICT d, const void *ZRESTRICT s, size_t n)
 {
 	/* attempt word-sized copying only if buffers have identical alignment */
@@ -322,6 +471,7 @@ void *memcpy(void *ZRESTRICT d, const void *ZRESTRICT s, size_t n)
 
 	return d;
 }
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /**
  *
