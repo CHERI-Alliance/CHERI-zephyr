@@ -80,6 +80,8 @@
 -s tests/kernel/msgq/msgq_usage/kernel.message_queue.usage \
 -s tests/kernel/msgq/msgq_api/kernel.message_queue \
 -s tests/cheri/lib/c_lib/common/cheri.libraries.libc.common \
+-s tests/kernel/fpu_sharing/generic/kernel.fpu_sharing.generic.riscv64.cheri \
+-s tests/kernel/fpu_sharing/generic/kernel.fpu_sharing.generic.riscv64 \
 -s tests/subsys/logging/log_output/logging.output \
 -s tests/subsys/logging/log_output/logging.output.ts64 \
 -s tests/subsys/logging/log_output/logging.output.ts64.date \
@@ -139,6 +141,7 @@
 -s tests/kernel/msgq/msgq_usage/kernel.message_queue.usage \
 -s tests/kernel/msgq/msgq_api/kernel.message_queue \
 -s tests/cheri/lib/c_lib/common/cheri.libraries.libc.common \
+-s tests/kernel/fpu_sharing/generic/kernel.fpu_sharing.generic.riscv32 \
 -s tests/subsys/logging/log_output/logging.output \
 -s tests/subsys/logging/log_output/logging.output.ts64 \
 -s tests/subsys/logging/log_output/logging.output.ts64.date \

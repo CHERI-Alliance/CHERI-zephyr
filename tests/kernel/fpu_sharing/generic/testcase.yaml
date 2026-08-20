@@ -48,6 +48,21 @@ tests:
       - kernel
     timeout: 600
     min_ram: 16
+    toolchain_exclude:
+      - llvm-cheri
+  kernel.fpu_sharing.generic.riscv64.cheri:
+    extra_args: PI_NUM_ITERATIONS=500
+    extra_configs:
+      - CONFIG_MAIN_STACK_SIZE=4096
+    filter: CONFIG_CPU_HAS_FPU and CONFIG_64BIT
+    arch_allow: riscv
+    tags:
+      - fpu
+      - kernel
+    timeout: 600
+    min_ram: 16
+    toolchain_allow:
+      - llvm-cheri
   kernel.fpu_sharing.generic.sparc:
     extra_args: PI_NUM_ITERATIONS=70000
     filter: CONFIG_CPU_HAS_FPU
