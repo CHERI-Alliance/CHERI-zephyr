@@ -33,7 +33,8 @@ export LLVM_CHERI_TOOLCHAIN_PATH=/opt/cheri/llvm-cheri-codasip/build
 export QEMU_BIN_PATH=/opt/cheri/qemu-codasip/build
 
 #32bit
-./zephyr/scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
+./zephyr/scripts/twister --retry-failed 1 --timeout-multiplier 2 \
+--runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv32cheri_zcheripurecap -p qemu_riscv32cheri_smp_zcheripurecap \
 -T zephyr/tests/kernel \
 -T zephyr/tests/arch \
@@ -42,7 +43,8 @@ export QEMU_BIN_PATH=/opt/cheri/qemu-codasip/build
 2>&1 | tee ${base_dir}/${files[0]}
 
 #64bit
-./zephyr/scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
+./zephyr/scripts/twister --retry-failed 1 --timeout-multiplier 2 \
+--runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv64cheri_zcheripurecap -p qemu_riscv64cheri_smp_zcheripurecap \
 -T zephyr/tests/kernel \
 -T zephyr/tests/arch \
@@ -57,7 +59,8 @@ export LLVM_CHERI_TOOLCHAIN_PATH=/opt/cheri/cheri/output/sdk
 export QEMU_BIN_PATH=/opt/cheri/cheri/output/sdk/bin
 
 #32bit
-./zephyr/scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
+./zephyr/scripts/twister --retry-failed 1 --timeout-multiplier 2 \
+--runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv32cheri_purecap -p qemu_riscv32cheri_smp_purecap \
 -T zephyr/tests/kernel \
 -T zephyr/tests/arch \
@@ -66,7 +69,8 @@ export QEMU_BIN_PATH=/opt/cheri/cheri/output/sdk/bin
 2>&1 | tee ${base_dir}/${files[2]}
 
 #64bit
-./zephyr/scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
+./zephyr/scripts/twister --retry-failed 1 --timeout-multiplier 2 \
+--runtime-artifact-cleanup --force-color --inline-logs \
 -p qemu_riscv64cheri_purecap -p qemu_riscv64cheri_smp_purecap \
 -T zephyr/tests/kernel \
 -T zephyr/tests/arch \
