@@ -78,6 +78,25 @@ def reformat_str(match_obj):
 
 
 def process_line(line, fp):
+
+    # gperf's assumptions about pointer sizes break CHERI
+    #
+    # Rather than change the gperf code to account for larger pointers,
+    # we can use this post-processing script (which is already
+    # adjusting the output of gperf for zephyr) to override
+    # MAX_WORD_LENGTH
+    if line.startswith("#define MAX_WORD_LENGTH"):
+        fp.write("#ifdef __CHERI_PURE_CAPABILITY__\n")
+        fp.write("#if defined(CONFIG_64BIT)\n")
+        fp.write("#define MAX_WORD_LENGTH 16\n")
+        fp.write("#else\n")
+        fp.write("#define MAX_WORD_LENGTH 8\n")
+        fp.write("#endif\n")
+        fp.write("#else\n")
+        fp.write(line)
+        fp.write("#endif\n")
+        return
+
     if line.startswith("#"):
         fp.write(line)
         return
