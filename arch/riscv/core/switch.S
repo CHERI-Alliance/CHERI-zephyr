@@ -137,9 +137,11 @@ SECTION_FUNC(TEXT, z_riscv_switch)
 	M_CLB t0, _thread_offset_to_user_options(ca0) /* load byte user options from cap*/
 	andi t0, t0, K_USER
 	beqz t0, not_user_task
+    #if defined(CONFIG_RISCV_PMP)
 	M_CMOVE cs0, ca0
 	M_CCALL z_riscv_pmp_usermode_enable
 	M_CMOVE ca0, cs0
+    #endif
 	#else
 	lb t0, _thread_offset_to_user_options(a0)
 	andi t0, t0, K_USER
