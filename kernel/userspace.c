@@ -57,14 +57,15 @@ static struct k_spinlock objfree_lock;     /* k_object_free */
  * stack and other for the user stack, so we need to account the
  * worst alignment scenario and reserve space for that.
  */
-#if defined(CONFIG_ARM_MPU) || defined(CONFIG_ARC_MPU) || defined(CONFIG_RISCV_PMP)
+#if defined(CONFIG_ARM_MPU) || defined(CONFIG_ARC_MPU) || defined(CONFIG_RISCV_PMP) \
+		|| defined(CONFIG_RISCV_CHERI_USERCAPS_POC)
 #define STACK_ELEMENT_DATA_SIZE(size) \
 	(sizeof(struct z_stack_data) + CONFIG_PRIVILEGED_STACK_SIZE + \
 	Z_THREAD_STACK_OBJ_ALIGN(size) + K_THREAD_STACK_LEN(size))
 #else
 #define STACK_ELEMENT_DATA_SIZE(size) (sizeof(struct z_stack_data) + \
 	K_THREAD_STACK_LEN(size))
-#endif /* CONFIG_ARM_MPU || CONFIG_ARC_MPU || CONFIG_RISCV_PMP */
+#endif /* CONFIG_ARM_MPU || CONFIG_ARC_MPU || CONFIG_RISCV_PMP || CONFIG_RISCV_CHERI_USERCAPS_POC*/
 #else
 #define STACK_ELEMENT_DATA_SIZE(size) K_THREAD_STACK_LEN(size)
 #endif /* CONFIG_GEN_PRIV_STACKS */
@@ -350,13 +351,14 @@ static struct k_object *dynamic_object_create(enum k_objects otype, size_t align
 		stack_data->priv = (uint8_t *)dyn->data;
 		stack_data->size = adjusted_size;
 		dyn->kobj.data.stack_data = stack_data;
-#if defined(CONFIG_ARM_MPU) || defined(CONFIG_ARC_MPU) || defined(CONFIG_RISCV_PMP)
+#if defined(CONFIG_ARM_MPU) || defined(CONFIG_ARC_MPU) || defined(CONFIG_RISCV_PMP) \
+			|| defined(CONFIG_RISCV_CHERI_USERCAPS_POC)
 		dyn->kobj.name = (void *)ROUND_UP(
 			  ((uint8_t *)dyn->data + CONFIG_PRIVILEGED_STACK_SIZE),
 			  Z_THREAD_STACK_OBJ_ALIGN(size));
 #else
 		dyn->kobj.name = dyn->data;
-#endif /* CONFIG_ARM_MPU || CONFIG_ARC_MPU || CONFIG_RISCV_PMP */
+#endif /* CONFIG_ARM_MPU || CONFIG_ARC_MPU || CONFIG_RISCV_PMP || CONFIG_RISCV_CHERI_USERCAPS_POC */
 #else
 		dyn->kobj.name = dyn->data;
 		dyn->kobj.data.stack_size = adjusted_size;

@@ -309,6 +309,72 @@ config EXTRA_EXCEPTION_INFO
 	  register state, when a fault occurs. This information can be useful
 	  to collect for post-mortem analysis and debug of issues.
 
+config RISCV_CHERI_USERCAPS_POC
+	bool "RISC-V / CHERI-based Userspace Support"
+	select THREAD_STACK_INFO
+	select CPU_HAS_MPU
+	select ARCH_HAS_USERSPACE
+	select ARCH_HAS_STACK_PROTECTION
+	#select GEN_PRIV_STACKS
+	select MPU
+	select SRAM_REGION_PERMISSIONS
+	select ARCH_MEM_DOMAIN_SYNCHRONOUS_API if USERSPACE
+	select ARCH_MEM_DOMAIN_DATA if USERSPACE
+	select THREAD_LOCAL_STORAGE if USERSPACE
+	select ARCH_MEM_DOMAIN_SUPPORTS_ISOLATED_STACKS
+	select MEM_DOMAIN_ISOLATED_STACKS
+	help
+	  CHERI implements compartment-based userspace
+
+if RISCV_CHERI_USERCAPS_POC
+
+config PMP_SLOTS
+	int "Number of PMP slots"
+	default 8
+	help
+	  This is the number of PMP entries implemented by the hardware.
+	  Typical values are 8 or 16.
+
+config PMP_NO_TOR
+	bool
+	help
+	  Set this if TOR (Top Of Range) mode is not supported.
+
+config PMP_NO_NA4
+	bool
+	help
+	  Set this if NA4 (Naturally Aligned 4-byte) mode is not supported.
+
+config PMP_NO_NAPOT
+	bool
+	help
+	  Set this if NAPOT (Naturally Aligned Power Of Two) is not supported.
+
+config PMP_POWER_OF_TWO_ALIGNMENT
+	bool "Enforce power-of-two alignment on PMP memory areas" if !PMP_NO_TOR
+	default y if TEST_USERSPACE
+	default y if (PMP_SLOTS = 8)
+	default y if PMP_NO_TOR
+	select MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT
+	select GEN_PRIV_STACKS
+	help
+	  This option reduces the PMP slot usage but increases
+	  memory consumption. Useful when enabling userspace mode with
+	  many memory domains and/or few PMP slots available.
+
+config PMP_GRANULARITY
+	int "The granularity of PMP address matching"
+	default 8 if (PMP_NO_TOR && PMP_NO_NA4)
+	default 4
+	help
+	  The granularity must be a power of 2 greater than or equal to 4
+	  (ie 4, 8, 16, ...), but if neither TOR mode nor NA4 mode is
+	  supported, the minimum granularity is 8.
+
+endif #RISCV_CHERI_USERCAPS_POC
+
+########### RISCV_PMP BELOW ################
+
 config RISCV_PMP
 	bool "RISC-V PMP Support"
 	select THREAD_STACK_INFO
@@ -395,7 +461,7 @@ config PMP_STACK_GUARD_MIN_SIZE
 # (PMP) Unit.
 config NULL_POINTER_EXCEPTION_DETECTION_PMP
 	bool "Use PMP for null pointer exception detection"
-	depends on RISCV_PMP
+	depends on RISCV_PMP || RISCV_CHERI_USERCAPS_POC
 	help
 	  Null pointer dereference detection implemented
 	  using PMP functionality.

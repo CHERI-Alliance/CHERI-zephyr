@@ -29,6 +29,8 @@ zephyr_library_sources_ifdef(CONFIG_DEBUG_COREDUMP coredump.c)
 zephyr_library_sources_ifdef(CONFIG_IRQ_OFFLOAD irq_offload.c)
 zephyr_library_sources_ifdef(CONFIG_GEN_SW_ISR_TABLE isr.S)
 zephyr_library_sources_ifdef(CONFIG_RISCV_PMP pmp.c pmp.S)
+# TODO: remove this if possible!
+zephyr_library_sources_ifdef(CONFIG_RISCV_CHERI_USERCAPS_POC pmp.c pmp.S) # maybe not needed?
 zephyr_library_sources_ifdef(CONFIG_THREAD_LOCAL_STORAGE tls.c)
 zephyr_library_sources_ifdef(CONFIG_USERSPACE userspace.S)
 zephyr_library_sources_ifdef(CONFIG_SEMIHOST semihost.c)
