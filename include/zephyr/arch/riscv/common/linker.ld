@@ -179,9 +179,8 @@ SECTIONS
 		KEEP(*(".openocd_debug.*"))
 
 		__text_region_start = .;
-
-		*(.text)
-		*(".text.*")
+		*(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .text);
+		*(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .text.*);
 		*(.gnu.linkonce.t.*)
 #include <zephyr/linker/kobject-text.ld>
 	} GROUP_LINK_IN(ROMABLE_REGION)
@@ -201,8 +200,8 @@ SECTIONS
 		 . = ALIGN(4);
 		 *(.srodata)
 		 *(".srodata.*")
-		 *(.rodata)
-		 *(".rodata.*")
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .rodata);
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .rodata.*);
 		 *(.gnu.linkonce.r.*)
 		 *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
 
@@ -273,10 +272,11 @@ SECTIONS
 		 . = ALIGN(4);
 		 __bss_start = .;
 		__kernel_ram_start = .;
-		 *(.sbss)
-		 *(".sbss.*")
-		 *(.bss)
-		 *(".bss.*")
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .bss);
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .bss.*);
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .sbss);
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .sbss.*);
+
 		 COMMON_SYMBOLS
 
 #ifdef CONFIG_CODE_DATA_RELOCATION
@@ -299,8 +299,8 @@ SECTIONS
 		 __data_region_start = .;
 		 __data_start = .;
 
-		 *(.data)
-		 *(".data.*")
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .data);
+         *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .data.*);
 
 #ifdef CONFIG_RISCV_GP
 		/*
@@ -318,7 +318,7 @@ SECTIONS
 		 PROVIDE (__global_pointer$ = . + 0x800);
 #endif
 
-		 *(.sdata .sdata.* .gnu.linkonce.s.*)
+		 *(EXCLUDE_FILE (*lib_chericompartment1_*.a*) .sdata .sdata.* .gnu.linkonce.s.*)
 
 /* Located in generated directory. This file is populated by the
  * zephyr_linker_sources() Cmake function.
