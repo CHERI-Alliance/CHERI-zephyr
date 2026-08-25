@@ -35,12 +35,12 @@ extern "C" {
  */
 #ifdef CONFIG_CHERI
 /* only check if configured for CHERI */
-BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS,
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS,
 	     "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
 #endif
 #ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
 /* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
-BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV,
+BUILD_ASSERT(CONFIG_RISCV,
 	     "CONFIG_ISR_TABLE_USE_SYMBOLS is only available for RISCV");
 #ifdef CONFIG_RISCV
 void timer_isr(const void *arg);
