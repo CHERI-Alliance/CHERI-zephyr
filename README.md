@@ -121,7 +121,7 @@ The following is triggered automatically from ./bashrc to default select the Cod
 ```
 ## CHERI board support
 
-The following CHERI boards are supported:
+The following CHERI QEMU boards are supported:
 
 Codasip/Cambridge - build RISCV:
 * qemu_riscv64cheri
@@ -141,6 +141,18 @@ Cambridge (cheribuild) - build RISCV with CHERI Capabilities (purecap only):
 * qemu_riscv32cheri_purecap
 * qemu_riscv32cheri_smp_purecap
 
+The following CHERI physical hardware platforms are supported:
+
+Codasip - hobgoblin platform based on the VCU118 FPGA board:
+* hobgoblin_riscv32cheri
+* hobgoblin_riscv32cheri_zcheripurecap
+* hobgoblin_riscv64cheri
+* hobgoblin_riscv64cheri_smp (4 cores)
+* hobgoblin_riscv64cheri_zcheripurecap
+* hobgoblin_riscv64cheri_smp_zcheripurecap (4 cores)
+
+
+
 ## Running tests
 
 You can either build and run individual tests using `west build`, or run various test scripts which use `twister` as described below.
@@ -154,21 +166,21 @@ To get a summary report of all the kernel specific twister tests that pass for a
 This runs twister tests including arch, kernel and added cheri tests for the supported 32 and 64 bit CHERI-RISCV architectures, and prints out a summary of the results:
 ```
 =====================================
- CHERI-RISC-V Twister Test Results
+ CHERI‑RISC‑V Twister Test Results
  arch + kernel + cheri
 =====================================
 [CODASIP_32_BIT]
-  Test Configurations: 164/232 (70.69%)
-  Test Cases:   1630/2189 (74.46%)
+  Test Configurations: 200/247 (80.97%)
+  Test Cases:   1946/2275 (85.54%)
 [CODASIP_64_BIT]
-  Test Configurations: 146/230 (63.48%)
-  Test Cases:   1579/2191 (72.07%)
+  Test Configurations: 179/245 (73.06%)
+  Test Cases:   1939/2284 (84.89%)
 [CHERIBUILD_32_BIT]
-  Test Configurations: 147/232 (63.36%)
-  Test Cases:   1414/2244 (63.01%)
+  Test Configurations: 170/247 (68.83%)
+  Test Cases:   1701/2329 (73.04%)
 [CHERIBUILD_64_BIT]
-  Test Configurations: 143/230 (62.17%)
-  Test Cases:   1587/2191 (72.43%)
+  Test Configurations: 174/245 (71.02%)
+  Test Cases:   1923/2284 (84.19%)
 ```
 
 ### Basic twister samples
@@ -213,14 +225,24 @@ Below is a list of CHERI-specific tests and samples that have been added to the 
 
 tests/cheri:
 * lib/mem_blocks - testing CHERI modified mem_blocks api and bounds verification
+* lib/heap_sys_heap - testing CHERI modified memory allocator api
+* lib/heap - testing CHERI modified memory allocator api
+* lib/heap_align - testing CHERI modified memory allocator api
+* lib/multi_heap - testing CHERI modified memory allocator api
+* lib/c_lib - testing CHERI modified memory functions of Zephyr's minimal libc library
 * kernel/mem_slab - testing CHERI modified mem_slab api and bounds verification
 * kernel/stack - testing CHERI modified stack allocation and bounds verification
+* kernel/mem_heap - testing CHERI modified memory allocator api
 
 samples/cheri:
 * buffer_overflow - CHERI preventing basic overflow
 * mem_blocks_overflow - CHERI preventing individual block overflow
 * mem_slab_overflow - CHERI preventing individual block overflow
 * stack_overflow - CHERI preventing single thread stack overflow
+* sys_heap_overflow - CHERI preventing heap overflow
+* sys_multi_heap_overflow - CHERI preventing heap overflow
+* k_heap_overflow - CHERI preventing heap overflow
+* k_malloc_overflow - CHERI preventing heap overflow
 
 ## Feature branch Modbus demo
 
@@ -252,6 +274,14 @@ D: 01 0f 00 00 00 03 01 00 |........          | I: Coil read, addr 2, 0
 D: 8f 57                   |.W                | D: uart_buf
 ....                                          | ....
 ```
+
+## Feature branch CHERI compartment userspace demo
+
+This is a branch of CHERI-Zephyr with a developmental proof-of-concept CHERI compartmentalisation of userspace threads, which replaces the need for the traditional PMP. A sample under samples/cheri/aes_compartment runs an AES encryption library inside a CHERI compartment. Examples show CHERI hardware exceptions when trying to access outside of the compartment or from one compartment to another unless given explicit access. Note this is a proof of concept and should be used with caution. See the sample README file for more details.
+
+## Feature branch recovery analysis
+
+This is an orphan branch with a developmental proof-of-concept approach to CHERI hardware exception recovery using automated static analysis of thread dependency and recovery. Future C code generation from impact analysis output can be acted on from within Zephyr when a thread crashes. The branch here focuses on static analysis techniques.
 
 ## Non-CHERIfied Zephyr
 
