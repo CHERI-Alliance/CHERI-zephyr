@@ -1,0 +1,31 @@
+/*
+ * Copyright (c) 2026 University of Birmingham, support for CHERI
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/kernel.h>
+
+/* CHERI helper function for printing inline */
+
+static inline void print_cap(const char *label, void *cap)
+{
+#ifdef __CHERI_PURE_CAPABILITY__
+	uintptr_t cap_addr = __builtin_cheri_address_get(cap);
+	uintptr_t cap_base = __builtin_cheri_base_get(cap);
+	size_t cap_len  = __builtin_cheri_length_get(cap);
+	size_t tag = __builtin_cheri_tag_get(cap);
+	size_t sealed = __builtin_cheri_sealed_get(cap);
+
+	printk("%s\n", label);
+	printk("\tCHERI addr:   0x%lx\n", (unsigned long)cap_addr);
+	printk("\tCHERI base:   0x%lx\n", (unsigned long)cap_base);
+	printk("\tCHERI top:    0x%lx\n", (unsigned long)cap_base+cap_len);
+	printk("\tCHERI length: %zu\n", cap_len);
+	printk("\tCHERI tag:    %zu\n", tag);
+	printk("\tCHERI sealed: %zu (%s)\n",
+		sealed,
+		sealed ? "sealed" : "unsealed");
+
+#endif /* __CHERI_PURE_CAPABILITY__ */
+}
