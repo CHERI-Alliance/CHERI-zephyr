@@ -1,0 +1,21 @@
+#+title: crash-coupling-analyzer
+
+This is a WIP static analyzer for determining the minimum-restartable thread set when a given Zephyr thread crashes. Please bear in mind that it likely is still bug-prone and may produce inaccurate results. It is tested against a corpus of 20 different Zephyr applications.
+
+* Usage
+
+Everything is orchestrated by =make= and =docker=. =make.sh= wraps =make= in the Docker container described by the =Dockerfile=. To analyse all 20 projects in the corpus, run:
+
+#+begin_src shell
+./make.sh analyze-all
+#+end_src
+
+This should download, compile, and analyse these projects, putting the output in =test-results/=.
+
+* Requirements
+
+Most software requirements should be satisfied by the Docker container. Otherwise:
+
+- Time: Full analysis when all test applications are on-disk and compiled takes about 14 minutes on a reasonably modern 6c/12t laptop. It will likely take a fair bit longer to additionally download and compile all of these projects.
+- Disk space: Every application pins its own version of Zephyr, so things can get quite big. Please make sure you have at least 140GB of free space on disk before downloading and compiling the test corpus.
+- Memory: Memory usage is modest enough to run on a laptop with 16GB of memory.

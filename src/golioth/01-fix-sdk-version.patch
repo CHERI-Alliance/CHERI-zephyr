@@ -1,0 +1,11 @@
+--- a/cmake/modules/FindHostTools.cmake
++++ b/cmake/modules/FindHostTools.cmake
+@@ -48,7 +48,7 @@
+   return()
+ endif()
+
+-find_package(Zephyr-sdk 0.16)
++find_package(Zephyr-sdk 1.0)
+
+ # gperf is an optional dependency
+ find_program(GPERF gperf)

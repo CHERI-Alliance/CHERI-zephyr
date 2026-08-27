@@ -1,0 +1,16 @@
+diff --git a/west.yml b/west.yml
+index 75f8fb2..0996ab9 100644
+--- a/west.yml
++++ b/west.yml
+@@ -13,10 +13,11 @@ manifest:
+     - name: zephyr
+       remote: zephyr
+       repo-path: zephyr
+-      revision: main
++      revision: v4.4.0
+       import:
+         name-allowlist:
+           - cmsis
++          - cmsis_6
+           - cmsis-dsp
+           - hal_stm32

@@ -1,0 +1,24 @@
+From: coupling-test <coupling-test@local>
+Subject: [PATCH] Accept any Zephyr SDK version in FindHostTools
+
+ZSWatch pins Zephyr v4.3.x which requests SDK version 0.16 via
+find_package(Zephyr-sdk 0.16). SDK 1.0.1 registers as version 1.0.1
+which fails this version check. Remove the version constraint so that
+SDK 1.0.1 is accepted.
+---
+ zephyr/cmake/modules/FindHostTools.cmake | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/zephyr/cmake/modules/FindHostTools.cmake b/zephyr/cmake/modules/FindHostTools.cmake
+index fbb09ad4883..897e5f41b72 100644
+--- a/zephyr/cmake/modules/FindHostTools.cmake
++++ b/zephyr/cmake/modules/FindHostTools.cmake
+@@ -48,7 +48,7 @@ if(HostTools_FOUND)
+   return()
+ endif()
+ 
+-find_package(Zephyr-sdk 0.16)
++find_package(Zephyr-sdk)
+ 
+ # gperf is an optional dependency
+ find_program(GPERF gperf)

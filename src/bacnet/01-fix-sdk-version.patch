@@ -1,0 +1,10 @@
+--- a/cmake/modules/FindHostTools.cmake
++++ b/cmake/modules/FindHostTools.cmake
+@@ -51,7 +51,7 @@
+ find_package(Deprecated COMPONENTS CROSS_COMPILE)
+
+-find_package(Zephyr-sdk 0.16...<0.17)
++find_package(Zephyr-sdk 1.0)
+
+ # gperf is an optional dependency
+ find_program(GPERF gperf)

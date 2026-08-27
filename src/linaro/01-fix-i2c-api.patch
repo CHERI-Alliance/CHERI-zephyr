@@ -1,0 +1,11 @@
+--- a/samples/foc_controller/src/foc_driver.c
++++ b/samples/foc_controller/src/foc_driver.c
+@@ -156,7 +156,7 @@ int foc_driver_initialize(float motor_pole_pairs, foc_measurement_callback_t cb)
+ 	encoder_reading.raw = 0;
+ 	encoder_reading.zero_offset = 0;
+ 
+-	i2c_configure(encoder_i2c, I2C_MODE_MASTER | I2C_SPEED_FAST);
++	i2c_configure(encoder_i2c, I2C_MODE_CONTROLLER | I2C_SPEED_FAST);
+ 	foc_driver_set_duty_cycle(0.0f, 0.0f, 0.0f);
+ 
+ 	gpio_pin_configure_dt(&enable_u, GPIO_OUTPUT);

@@ -1,0 +1,80 @@
+From 021f2dd1c601220e2e0bc7f8bc6c9ed6705fc9f4 Mon Sep 17 00:00:00 2001
+From: Matthew Bowden <mxb1143@student.bham.ac.uk>
+Date: Wed, 10 Jun 2026 16:22:33 +0100
+Subject: [PATCH] WIP: fix build for v4.4 native_sim
+
+---
+ controller/app/src/configs.c               | 2 +-
+ controller/app/src/platform/CMakeLists.txt | 9 ++++++++-
+ controller/drivers/input/CMakeLists.txt    | 4 +---
+ controller/drivers/motors/CMakeLists.txt   | 4 +---
+ controller/west.yml                        | 2 +-
+ 5 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/controller/app/src/configs.c b/controller/app/src/configs.c
+index d8f6e1a..a25a0f4 100644
+--- a/controller/app/src/configs.c
++++ b/controller/app/src/configs.c
+@@ -1,4 +1,4 @@
+-#include "zephyr/toolchain/gcc.h"
++#include <zephyr/toolchain.h>
+ #include <controller/low_level/configs_storage.h>
+ #include <controller/configs.h>
+ 
+diff --git a/controller/app/src/platform/CMakeLists.txt b/controller/app/src/platform/CMakeLists.txt
+index d55bd95..3f4792f 100644
+--- a/controller/app/src/platform/CMakeLists.txt
++++ b/controller/app/src/platform/CMakeLists.txt
+@@ -1,8 +1,15 @@
+ target_sources(app PRIVATE
+     configs_storage_zephyr.c
++    config_shell.c
++)
++
++target_sources_ifdef(CONFIG_CMSIS_DSP app PRIVATE
+     pid_cmsis.c
+     quaternion_cmsis.c
+-    config_shell.c
++)
++
++target_sources_ifndef(CONFIG_CMSIS_DSP app PRIVATE
++    native_stubs.c
+ )
+ 
+ target_sources_ifdef(CONFIG_APP_IMU_ZEPHYR app PRIVATE imu_zephyr.c)
+diff --git a/controller/drivers/input/CMakeLists.txt b/controller/drivers/input/CMakeLists.txt
+index ac9d976..30bda0b 100644
+--- a/controller/drivers/input/CMakeLists.txt
++++ b/controller/drivers/input/CMakeLists.txt
+@@ -1,4 +1,2 @@
+ zephyr_library()
+-zephyr_library_sources(
+-    pwm_inputs.c
+-)
++zephyr_library_sources_ifdef(CONFIG_PWM_INPUTS_DRV pwm_inputs.c)
+diff --git a/controller/drivers/motors/CMakeLists.txt b/controller/drivers/motors/CMakeLists.txt
+index e68f854..e3b12e6 100644
+--- a/controller/drivers/motors/CMakeLists.txt
++++ b/controller/drivers/motors/CMakeLists.txt
+@@ -1,4 +1,2 @@
+ zephyr_library()
+-zephyr_library_sources(
+-    pwm_motors.c
+-)
++zephyr_library_sources_ifdef(CONFIG_PWM_MOTORS_DRV pwm_motors.c)
+diff --git a/controller/west.yml b/controller/west.yml
+index 4b14ea4..c1492ae 100644
+--- a/controller/west.yml
++++ b/controller/west.yml
+@@ -7,7 +7,7 @@ manifest:
+ 
+   projects:
+     - name: zephyr
+-      revision: d55b0a410d98f10e84ac338888413ef240022ec1
++      revision: v4.4.0
+       path: zephyr
+       import:
+         name-allowlist:
+-- 
+2.54.0
+

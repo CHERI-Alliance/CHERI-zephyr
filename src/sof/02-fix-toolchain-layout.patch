@@ -1,0 +1,45 @@
+diff --git a/cmake/toolchain/zephyr/generic.cmake b/cmake/toolchain/zephyr/generic.cmake
+index f59d18c56fc..376e4ee96b5 100644
+--- a/cmake/toolchain/zephyr/generic.cmake
++++ b/cmake/toolchain/zephyr/generic.cmake
+@@ -1,7 +1,24 @@
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/generic.cmake)
++if(TOOLCHAIN_VARIANT_COMPILER STREQUAL "gnu" OR
++    NOT DEFINED TOOLCHAIN_VARIANT_COMPILER)
++  if(EXISTS ${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/gnu/generic.cmake)
++    include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/gnu/generic.cmake)
++  else()
++    include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/generic.cmake)
++  endif()
++  set(TOOLCHAIN_VARIANT_COMPILER "gnu" CACHE STRING "compiler used by the toolchain variant" FORCE)
+ 
+-set(TOOLCHAIN_KCONFIG_DIR ${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr)
++  set(TOOLCHAIN_KCONFIG_DIR ${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr)
++  set(TOOLCHAIN_HAS_GLIBCXX ON CACHE BOOL "True if toolchain supports libstdc++")
++  message(STATUS "Found toolchain: zephyr ${SDK_VERSION} (${ZEPHYR_SDK_INSTALL_DIR})")
++elseif(TOOLCHAIN_VARIANT_COMPILER STREQUAL "llvm")
++  include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/llvm/generic.cmake)
++  set(TOOLCHAIN_VARIANT_COMPILER "llvm" CACHE STRING "compiler used by the toolchain variant" FORCE)
+ 
+-message(STATUS "Found toolchain: zephyr ${SDK_VERSION} (${ZEPHYR_SDK_INSTALL_DIR})")
++  set(TOOLCHAIN_KCONFIG_DIR ${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr)
++
++  message(STATUS "Found toolchain: zephyr ${SDK_VERSION} (${ZEPHYR_SDK_INSTALL_DIR})")
++else()
++  message(FATAL_ERROR "Unsupported TOOLCHAIN_VARIANT_COMPILER: ${TOOLCHAIN_VARIANT_COMPILER}")
++endif()
+diff --git a/cmake/toolchain/zephyr/target.cmake b/cmake/toolchain/zephyr/target.cmake
+index 9eda6fa4e39..12acdb93342 100644
+--- a/cmake/toolchain/zephyr/target.cmake
++++ b/cmake/toolchain/zephyr/target.cmake
+@@ -1,3 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/target.cmake)
++if(EXISTS ${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/gnu/target.cmake)
++  include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/gnu/target.cmake)
++else()
++  include(${ZEPHYR_SDK_INSTALL_DIR}/cmake/zephyr/target.cmake)
++endif()
