@@ -45,6 +45,7 @@ BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV,
 #ifdef CONFIG_RISCV
 void timer_isr(const void *arg);
 void plic_irq_handler(const struct device *dev);
+void uart_ns16550_isr(const struct device *dev);
 #ifdef CONFIG_SMP
 void sched_ipi_handler(const void *unused);
 #endif /*CONFIG_SMP*/

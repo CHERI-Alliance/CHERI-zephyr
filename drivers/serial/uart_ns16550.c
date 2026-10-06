@@ -1296,7 +1296,28 @@ static void uart_ns16550_irq_callback_set(const struct device *dev,
  *
  * @param arg Argument to ISR.
  */
+
+/*
+ * CONFIG_ISR_TABLE_USE_SYMBOLS was added for CHERI to link symbols, so the compiler can determine
+ * the capability for the function in the ISR table, but can also be used for non-capabilities.
+ * When using symbols in the ISR table (instead of fixed addresses) include the non-static function
+ * head here. Symbols are necessary for CHERI.
+ */
+#ifdef CONFIG_CHERI
+/* only check if configured for CHERI */
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+/* The CONFIG_ISR_TABLE_USE_SYMBOLS option is only available for RISCV at present */
+BUILD_ASSERT(CONFIG_ISR_TABLE_USE_SYMBOLS > CONFIG_RISCV,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is only available for RISCV");
+#ifdef CONFIG_RISCV
+void uart_ns16550_isr(const struct device *dev)
+#endif /*CONFIG_RISCV*/
+#else
 static void uart_ns16550_isr(const struct device *dev)
+#endif /*CONFIG_ISR_TABLE_USE_SYMBOLS */
 {
 	struct uart_ns16550_dev_data *const dev_data = dev->data;
 	const struct uart_ns16550_dev_config *const dev_cfg = dev->config;
