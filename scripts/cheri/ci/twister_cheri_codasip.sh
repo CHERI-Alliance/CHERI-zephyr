@@ -113,6 +113,10 @@ set -e
 -s tests/subsys/logging/log_backend_uart/logging.backend.uart.single \
 -s tests/subsys/logging/log_frontend_stmesp_demux/debug.coresight.stp_demux \
 -s tests/subsys/logging/log_frontend_stmesp_demux/debug.coresight.stp_demux_max_utilization \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.primitive.directed \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.primitive.broadcast \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.preemptive.broadcast \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.preemptive.optimize \
 -v --short-build-path -O/tmp/twister-out
 
 #32bit WITH and WITHOUT smp
@@ -180,4 +184,8 @@ set -e
 -s tests/subsys/logging/log_backend_uart/logging.backend.uart.single \
 -s tests/subsys/logging/log_frontend_stmesp_demux/debug.coresight.stp_demux \
 -s tests/subsys/logging/log_frontend_stmesp_demux/debug.coresight.stp_demux_max_utilization \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.primitive.directed \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.primitive.broadcast \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.preemptive.broadcast \
+-s tests/benchmarks/ipi_metric/benchmark.ipi_metric.preemptive.optimize \
 -v --short-build-path -O/tmp/twister-out

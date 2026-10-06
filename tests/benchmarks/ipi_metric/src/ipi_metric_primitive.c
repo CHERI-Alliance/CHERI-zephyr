@@ -1,9 +1,17 @@
 /*
  * Copyright (c) 2025 Intel Corporation.
+ * Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/* When building with picolibc this header gets automatically pulled in.
+ * With the CHERI toolchain we currently only support minimal libc so
+ * we need to explicitly add it.
+ */
+#if defined(CONFIG_TOOLCHAIN_LLVM_CHERI) && defined(CONFIG_MINIMAL_LIBC)
+#include <stdio.h>
+#endif
 #include <zephyr/kernel.h>
 
 #if CONFIG_MP_MAX_NUM_CPUS <= 1
@@ -154,7 +162,11 @@ void report(void)
 	}
 }
 
+#if CONFIG_TOOLCHAIN_LLVM_CHERI
+void main(void)
+#else
 int main(void)
+#endif
 {
 	unsigned int i;
 
