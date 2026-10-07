@@ -1,5 +1,6 @@
 /*
  *  Copyright (c) 2023 KNS Group LLC (YADRO)
+ *  Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  *
  *  SPDX-License-Identifier: Apache-2.0
  */
@@ -62,10 +63,18 @@ size_t arch_perf_current_stack_trace(uintptr_t *buf, size_t size)
 	 *  ....
 	 *
 	 */
+#ifdef __CHERI_PURE_CAPABILITY__
+	void **fp = (void **)esf->cs0;
+#else
 	void **fp = (void **)esf->s0;
+#endif
 	void **new_fp = (void **)fp[-1];
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	buf[idx++] = esf->mepcc;
+#else
 	buf[idx++] = (uintptr_t)esf->mepc;
+#endif
 
 	/*
 	 * During function prologue and epilogue fp is equal to fp of
@@ -74,7 +83,11 @@ size_t arch_perf_current_stack_trace(uintptr_t *buf, size_t size)
 	 * So saving $ra will help in case when irq occurred in
 	 * function prologue or epilogue.
 	 */
+#ifdef __CHERI_PURE_CAPABILITY__
+	buf[idx++] = esf->cra;
+#else
 	buf[idx++] = (uintptr_t)esf->ra;
+#endif
 	if (valid_stack((uintptr_t)new_fp, _current)) {
 		fp = new_fp;
 	}

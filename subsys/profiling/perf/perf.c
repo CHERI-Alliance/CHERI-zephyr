@@ -1,6 +1,7 @@
 /*
  *  Copyright (c) 2023 KNS Group LLC (YADRO)
  *  Copyright (c) 2020 Yonatan Goldschmidt <yon.goldschmidt@gmail.com>
+ *  Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  *
  *  SPDX-License-Identifier: Apache-2.0
  */
@@ -134,7 +135,12 @@ static int cmd_perf_print(const struct shell *sh, size_t argc, char **argv)
 
 	shell_print(sh, "Perf buf length %zu", perf_data.idx);
 	for (size_t i = 0; i < perf_data.idx; i++) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/* print the address part */
+		shell_print(sh, "%016lx", (unsigned long)perf_data.buf[i]);
+#else
 		shell_print(sh, "%016lx", perf_data.buf[i]);
+#endif
 	}
 
 	cmd_perf_clear(NULL, 0, NULL);
