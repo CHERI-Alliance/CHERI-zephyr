@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024 NextSilicon LTD
+ * Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -27,8 +28,14 @@
  * - Successful if all check points in the test procedure have passed, failure otherwise.
  */
 
+/* for CHERI void * is twice the size of long type which is atomic_t so change to long */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define ATOMIC_WORD(val_if_64, val_if_32)                                                          \
+	((atomic_t)((sizeof(long) == sizeof(uint64_t)) ? (val_if_64) : (val_if_32)))
+#else
 #define ATOMIC_WORD(val_if_64, val_if_32)                                                          \
 	((atomic_t)((sizeof(void *) == sizeof(uint64_t)) ? (val_if_64) : (val_if_32)))
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 ZTEST_USER(riscv_atomic, test_atomic)
 {
