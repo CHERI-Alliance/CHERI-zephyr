@@ -93,20 +93,40 @@ if(NOT "${ARCH}" STREQUAL "posix")
 			endif()
 		endif()
 	else()
-		#Note older versions of clang such as the cheri one do not support all the extensions
-		#in include(${ZEPHYR_BASE}/cmake/compiler/gcc/target_riscv.cmake)
 		if(CONFIG_64BIT)
-		#if compiling for normal riscv64
-		message(STATUS, "Compiling for riscv64 only")
-		string(PREPEND CMAKE_ASM_FLAGS "-march=rv64imafc -mabi=lp64")
-		string(PREPEND CMAKE_C_FLAGS   "-march=rv64imafc -mabi=lp64")
-		string(PREPEND CMAKE_CXX_FLAGS "-march=rv64imafc -mabi=lp64")
+		message(STATUS, "Compiling for riscv64")
 		else()
 		message(STATUS, "Compiling for riscv32")
-		string(PREPEND CMAKE_ASM_FLAGS "-march=rv32gc -mabi=ilp32 ")
-		string(PREPEND CMAKE_C_FLAGS   "-march=rv32gc -mabi=ilp32 ")
-		string(PREPEND CMAKE_CXX_FLAGS "-march=rv32gc -mabi=ilp32 ")
 		endif()
+
+		#Derive -march/-mabi from Kconfig, as the gcc and clang toolchains do
+		include(${ZEPHYR_BASE}/cmake/compiler/gcc/target_riscv.cmake)
+
+		#Note older versions of clang such as the cheri one do not support all the extensions
+		#in include(${ZEPHYR_BASE}/cmake/compiler/gcc/target_riscv.cmake)
+		#strip out _zicsr and _zifencei
+
+		list(TRANSFORM TOOLCHAIN_C_FLAGS REPLACE "_zicsr" "")
+		list(TRANSFORM TOOLCHAIN_C_FLAGS REPLACE "_zifencei" "")
+
+		list(TRANSFORM TOOLCHAIN_LD_FLAGS REPLACE "_zicsr" "")
+		list(TRANSFORM TOOLCHAIN_LD_FLAGS REPLACE "_zifencei" "")
+
+		list(TRANSFORM LLEXT_APPEND_FLAGS REPLACE "_zicsr" "")
+		list(TRANSFORM LLEXT_APPEND_FLAGS REPLACE "_zifencei" "")
+
+		#The compiler-rt libraries shipped with llvm-cheri use the soft-float ABI,
+		#so keep that ABI (the FPU is still used) or they cannot be linked
+		#This needs upgrading in the future to add more compiler-rt libraries to cover the different -mabi
+		string(REGEX REPLACE "[fd]$" "" riscv_soft_mabi ${riscv_mabi})
+		list(TRANSFORM TOOLCHAIN_C_FLAGS REPLACE "^-mabi=${riscv_mabi}$" "-mabi=${riscv_soft_mabi}")
+		list(TRANSFORM TOOLCHAIN_LD_FLAGS REPLACE "^-mabi=${riscv_mabi}$" "-mabi=${riscv_soft_mabi}")
+		list(TRANSFORM LLEXT_APPEND_FLAGS REPLACE "^-mabi=${riscv_mabi}$" "-mabi=${riscv_soft_mabi}")
+
+		message(STATUS "TOOLCHAIN_C_FLAGS=${TOOLCHAIN_C_FLAGS}")
+		message(STATUS "TOOLCHAIN_LD_FLAGS=${TOOLCHAIN_LD_FLAGS}")
+		message(STATUS "LLEXT_APPEND_FLAGS=${LLEXT_APPEND_FLAGS}")
+
 	endif()
     #-mno-relax needed to turn off riscv code optimisation by the linker which isn't present in version 14.0.0 version of llvm
     #when -mno-relax used only get error: relocation R_RISCV_HI20 out of range:
