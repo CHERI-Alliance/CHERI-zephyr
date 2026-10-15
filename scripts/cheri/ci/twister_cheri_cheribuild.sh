@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 #
 # Copyright (c) 2026 University of Birmingham
