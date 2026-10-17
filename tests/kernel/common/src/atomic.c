@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 Intel Corporation
+ * Copyright (c) 2026 University of Birmingham, Modified to support CHERI
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,8 +9,14 @@
 #include <zephyr/sys/atomic.h>
 
 /* convenience macro - return either 64-bit or 32-bit value */
+/* for CHERI void * is twice the size of long type which is atomic_t so change to long */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define ATOMIC_WORD(val_if_64, val_if_32)                                                          \
+	((atomic_t)((sizeof(long) == sizeof(uint64_t)) ? (val_if_64) : (val_if_32)))
+#else
 #define ATOMIC_WORD(val_if_64, val_if_32)                                                          \
 	((atomic_t)((sizeof(void *) == sizeof(uint64_t)) ? (val_if_64) : (val_if_32)))
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /* an example of the number of atomic bit in an array */
 #define NUM_FLAG_BITS 100
