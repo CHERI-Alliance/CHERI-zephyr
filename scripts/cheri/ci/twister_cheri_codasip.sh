@@ -91,6 +91,7 @@ set -e
 -s tests/kernel/common/kernel.common.lto \
 -s tests/kernel/common/kernel.common \
 -s tests/arch/riscv/atomic/arch.riscv.atomic \
+-s tests/arch/common/semihost/arch.common.semihost \
 -s tests/subsys/logging/log_output/logging.output \
 -s tests/subsys/logging/log_output/logging.output.ts64 \
 -s tests/subsys/logging/log_output/logging.output.ts64.date \
@@ -157,6 +158,7 @@ set -e
 -s tests/kernel/common/kernel.common.minimallibc \
 -s tests/kernel/common/kernel.common.lto \
 -s tests/arch/riscv/atomic/arch.riscv.atomic \
+-s tests/arch/common/semihost/arch.common.semihost \
 -s tests/subsys/logging/log_output/logging.output \
 -s tests/subsys/logging/log_output/logging.output.ts64 \
 -s tests/subsys/logging/log_output/logging.output.ts64.date \
