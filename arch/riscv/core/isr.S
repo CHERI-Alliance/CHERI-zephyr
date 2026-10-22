@@ -862,7 +862,7 @@ valid_syscall_id:
 	#ifdef __CHERI_PURE_CAPABILITY__
 	M_CLLC ct2, _k_syscall_table
 
-	slli t1, t0, RV_REGSHIFT	# Determine offset from indice value
+	slli t1, t0, RV_REGCAPSHIFT	# Determine offset from indice value
 	M_CINCOFFSET ct2, ct2, t1		# Table addr + offset = function addr
 	clc ct2, 0(ct2)			# Load function address
 	#else
@@ -1006,7 +1006,7 @@ on_irq_stack:
 	 */
 	#ifdef __CHERI_PURE_CAPABILITY__
 	M_CLLC ct0, _sw_isr_table
-	slli a0, a0, (RV_REGSHIFT + 1)
+	slli a0, a0, (RV_REGCAPSHIFT + 1)
 	M_CINCOFFSET ct0, ct0, a0
 	#else
 	la t0, _sw_isr_table
@@ -1023,7 +1023,7 @@ on_irq_stack:
 
 	/* Load ISR function address in register t1 */
 	#ifdef __CHERI_PURE_CAPABILITY__
-	clc ct1, RV_REGSIZE(ct0)
+	clc ct1, RV_REGCAPSIZE(ct0)
 	#else
 	lr t1, RV_REGSIZE(t0)
 	#endif

@@ -82,7 +82,7 @@ irq_loop:
 
 	/* Load ISR function address in register t1 */
 #ifdef __CHERI_PURE_CAPABILITY__
-	M_CLC ct1, RV_REGSIZE(ct0) /* load cap at cap */
+	M_CLC ct1, RV_REGCAPSIZE(ct0) /* load cap at cap */
 #else
 	lr t1, RV_REGSIZE(t0)
 #endif /* __CHERI_PURE_CAPABILITY__ */

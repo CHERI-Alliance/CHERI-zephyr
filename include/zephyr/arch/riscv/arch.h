@@ -144,30 +144,49 @@
 #endif /* CONFIG_PMP_POWER_OF_TWO_ALIGNMENT */
 
 #ifdef CONFIG_64BIT
-    #ifdef __CHERI_PURE_CAPABILITY__
-    #define RV_REGSIZE  16
-    #else
-    #define RV_REGSIZE  8
-    #endif
+#ifdef __CHERI_PURE_CAPABILITY__
+/* In purecap RV_REGSIZE is used for both cap extended registers and integer
+ * registers such as the pmp configuration registers. We therefore need
+ * an additional parameter to separate the two uses.
+ */
+#define RV_REGCAPSIZE  16
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
-    #ifdef __CHERI_PURE_CAPABILITY__
-    #define RV_REGSHIFT 4
-    #else
-    #define RV_REGSHIFT 3
-    #endif
+#define RV_REGSIZE  8
+
+#ifdef __CHERI_PURE_CAPABILITY__
+/* In purecap RV_REGSHIFT is used for both cap extended registers and integer
+ * registers such as the pmp configuration registers. We therefore need
+ * an additional parameter to separate the two uses.
+ */
+#define RV_REGCAPSHIFT 4
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
+#define RV_REGSHIFT 3
 
 #else
-    #ifdef __CHERI_PURE_CAPABILITY__
-    #define RV_REGSIZE  8
-    #else
-    #define RV_REGSIZE  4
-    #endif
 
-    #ifdef __CHERI_PURE_CAPABILITY__
-    #define RV_REGSHIFT 3
-    #else
-    #define RV_REGSHIFT 2
-    #endif
+#ifdef __CHERI_PURE_CAPABILITY__
+/* In purecap RV_REGSIZE is used for both cap extended registers and integer
+ * registers such as the pmp configuration registers. We therefore need
+ * an additional parameter to separate the two uses.
+ */
+#define RV_REGCAPSIZE  8
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
+#define RV_REGSIZE  4
+
+
+#ifdef __CHERI_PURE_CAPABILITY__
+/* In purecap RV_REGSHIFT is used for both cap extended registers and integer
+ * registers such as the pmp configuration registers. We therefore need
+ * an additional parameter to separate the two uses.
+ */
+#define RV_REGCAPSHIFT 3
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
+#define RV_REGSHIFT 2
+
 #endif
 
 /* Common mstatus bits. All supported cores today have the same
