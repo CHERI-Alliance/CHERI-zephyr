@@ -213,10 +213,10 @@
 #define M_CSW  sw  /* integer and cap */
 #define M_CRET ret /* integer and cap */
 #define M_CLW  lw  /* integer and cap */
+#define M_CLD  ld  /* integer and cap */
 #define M_CSC  sc  /* integer and cap */
 #define M_CLC  lc  /* integer and cap */
 #define M_CLB  lb  /* integer and cap */
-#define M_CSW  sw  /* integer and cap */
 #define M_CLBU lbu
 
 #ifdef _ASMLANGUAGE
@@ -270,10 +270,16 @@
 #define M_CSW  csw
 #define M_CRET cret
 #define M_CLW  clw
+#define M_CLD  cld
 #define M_CSC  csc
 #define M_CLC  clc
-#define M_CSW  csw
 #define M_CLBU clbu
+
+#ifdef CONFIG_64BIT
+#define M_CLR       M_CLD
+#else
+#define M_CLR       M_CLW
+#endif
 
 #endif /* CONFIG_RISCV_ISA_ZCHERIPURECAP_ABI */
 #else

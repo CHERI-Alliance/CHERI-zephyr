@@ -55,16 +55,21 @@ SECTION_FUNC(TEXT, z_riscv_write_pmp_entries)
 	#endif
 pmpaddr_store:
 	#ifdef __CHERI_PURE_CAPABILITY__
+		.option push
+		/* turn off compressed instructions to fix to 16 bytes of instructions below */
+		.option norvc
 		.set _index, 0
 		.rept CONFIG_PMP_SLOTS
-		/* integer offset has to be zero so inc cap first */
-		M_CINCOFFSETIMM ct0, ca3, (RV_REGSIZE * _index)
-		clr t0, 0(ct0) /* load integer into t0 using macro */
+		/* we can only have a max of 16 bytes here (4 instructions uncompressed)
+		 * so we need to use the direct capability load integer instruction
+		 */
+		M_CLR t0, (RV_REGSIZE * _index)(ca3)
 		li t1, _index + 1 /* load integer t1 */
 		csrw (CSR_PMPADDR_BASE + _index), t0 /* write integer t0 */
 		beq t1, a1, pmpaddr_done /* compare integers */
 		.set _index, _index + 1
 		.endr
+		.option pop
 	#else
 		.option push
 		.option norvc
@@ -105,18 +110,22 @@ pmpaddr_done:
 
 pmpcfg_store:
 	#ifdef __CHERI_PURE_CAPABILITY__
+		.option push
+		/* turn off compressed instructions to fix to 16 bytes of instructions below */
+		.option norvc
 		.set _index, 0
 		/* this code will be optimised away if (CONFIG_PMP_SLOTS / RV_REGSIZE) < 0 */
 		.rept (CONFIG_PMP_SLOTS / RV_REGSIZE)
-		/* integer offset has to be zero so inc cap first */
-		M_CINCOFFSETIMM ct0, ca4, (RV_REGSIZE * _index)
-		clr t0, 0(ct0) /* load integer into t0 using macro */
+		/* we can only have a max of 16 bytes here (4 instructions uncompressed)
+		 * so we need to use the direct capability load integer instruction
+		 */
+		M_CLR t0, (RV_REGSIZE * _index)(ca4)
 		addi a0, a0, 1 /* a0 is integer */
 		csrw (CSR_PMPCFG_BASE + RV_REGSIZE/4 * _index), t0 /* write integer t0 */
 		beq a0, a1, pmpcfg_done /* a0 and a1 integers */
 		.set _index, _index + 1
 		.endr
-
+		.option pop
 	#else
 		.option push
 		.option norvc
