@@ -389,14 +389,24 @@ static char *setup_thread_stack(struct k_thread *new_thread,
 
 #ifdef CONFIG_USERSPACE
 	if (z_stack_is_user_capable(stack)) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		stack_obj_size = __builtin_cheri_round_representable_length(
+				K_THREAD_STACK_LEN(stack_size));
+#else
 		stack_obj_size = K_THREAD_STACK_LEN(stack_size);
+#endif
 		stack_buf_start = K_THREAD_STACK_BUFFER(stack);
 		stack_buf_size = stack_obj_size - K_THREAD_STACK_RESERVED;
 	} else
 #endif /* CONFIG_USERSPACE */
 	{
 		/* Object cannot host a user mode thread */
+#ifdef __CHERI_PURE_CAPABILITY__
+		stack_obj_size = __builtin_cheri_round_representable_length(
+				K_KERNEL_STACK_LEN(stack_size));
+#else
 		stack_obj_size = K_KERNEL_STACK_LEN(stack_size);
+#endif
 		stack_buf_start = K_KERNEL_STACK_BUFFER(stack);
 		stack_buf_size = stack_obj_size - K_KERNEL_STACK_RESERVED;
 

@@ -1,0 +1,58 @@
+common:
+  tags:
+    - cheri
+    - kernel
+    - security
+    - userspace
+  toolchain_allow:
+    - llvm-cheri
+  platform_allow:
+    - qemu_riscv32cheri
+    - qemu_riscv32cheri_smp
+    - qemu_riscv64cheri
+    - qemu_riscv64cheri_smp
+    - qemu_riscv64cheri_purecap
+    - qemu_riscv32cheri_purecap
+    - qemu_riscv64cheri_zcheripurecap
+    - qemu_riscv32cheri_zcheripurecap
+    - qemu_riscv64cheri_smp_purecap
+    - qemu_riscv32cheri_smp_purecap
+    - qemu_riscv64cheri_smp_zcheripurecap
+    - qemu_riscv32cheri_smp_zcheripurecap
+tests:
+  cheri.kernel.dynamic.stack.sysheap:
+    extra_configs:
+      - CONFIG_DYNAMIC_THREAD_POOL_SIZE=2
+      - CONFIG_DYNAMIC_THREAD_ALLOC=y
+      - CONFIG_DYNAMIC_THREAD_PREFER_ALLOC=y
+      - CONFIG_DYNAMIC_THREAD_STACK_SIZE=2048
+  cheri.kernel.dynamic.stack.pool:
+    extra_configs:
+      - CONFIG_DYNAMIC_THREAD_POOL_SIZE=2
+      - CONFIG_DYNAMIC_THREAD_ALLOC=n
+      - CONFIG_DYNAMIC_THREAD_PREFER_ALLOC=n
+      - CONFIG_DYNAMIC_THREAD_STACK_SIZE=2048
+  cheri.kernel.dynamic.stack.sysheap.small:
+    extra_configs:
+      - CONFIG_DYNAMIC_THREAD_POOL_SIZE=2
+      - CONFIG_DYNAMIC_THREAD_ALLOC=y
+      - CONFIG_DYNAMIC_THREAD_PREFER_ALLOC=y
+      - CONFIG_DYNAMIC_THREAD_STACK_SIZE=2000
+  cheri.kernel.dynamic.stack.pool.small:
+    extra_configs:
+      - CONFIG_DYNAMIC_THREAD_POOL_SIZE=2
+      - CONFIG_DYNAMIC_THREAD_ALLOC=n
+      - CONFIG_DYNAMIC_THREAD_PREFER_ALLOC=n
+      - CONFIG_DYNAMIC_THREAD_STACK_SIZE=2000
+  cheri.kernel.dynamic.stack.sysheap.large:
+    extra_configs:
+      - CONFIG_DYNAMIC_THREAD_POOL_SIZE=2
+      - CONFIG_DYNAMIC_THREAD_ALLOC=y
+      - CONFIG_DYNAMIC_THREAD_PREFER_ALLOC=y
+      - CONFIG_DYNAMIC_THREAD_STACK_SIZE=8000
+  cheri.kernel.dynamic.stack.pool.large:
+    extra_configs:
+      - CONFIG_DYNAMIC_THREAD_POOL_SIZE=2
+      - CONFIG_DYNAMIC_THREAD_ALLOC=n
+      - CONFIG_DYNAMIC_THREAD_PREFER_ALLOC=n
+      - CONFIG_DYNAMIC_THREAD_STACK_SIZE=8000

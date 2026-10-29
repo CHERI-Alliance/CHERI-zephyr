@@ -75,6 +75,12 @@ set -e
 -s tests/cheri/lib/mem_blocks/cheri.libraries.mem_blocks \
 -s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.sysheap \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.sysheap.small \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.sysheap.large \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.small \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.large \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
 -s tests/kernel/threads/tls/kernel.threads.tls.userspace \
@@ -178,6 +184,12 @@ set -e
 -s tests/cheri/lib/mem_blocks/cheri.libraries.mem_blocks \
 -s tests/kernel/threads/thread_stack/kernel.threads.thread_stack \
 -s tests/cheri/kernel/stack/cheri.kernel.stack \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.sysheap \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.sysheap.small \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.sysheap.large \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.small \
+-s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.large \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
 -s tests/kernel/threads/tls/kernel.threads.tls.userspace \

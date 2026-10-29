@@ -52,7 +52,16 @@ static k_thread_stack_t *z_thread_stack_alloc_pool(size_t size)
 	__ASSERT_NO_MSG(offset < CONFIG_DYNAMIC_THREAD_POOL_SIZE);
 
 	stack = (k_thread_stack_t *)&dynamic_stack[offset];
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * For CHERI this is a static array of stacks.
+	 * Here we can reduce the bounds to the one selected stack
+	 * work out the cheri length and set the bounds.
+	 */
+	size_t cheri_len = __builtin_cheri_round_representable_length(size);
 
+	stack = __builtin_cheri_bounds_set_exact(stack, cheri_len);
+#endif
 	return stack;
 }
 
@@ -69,7 +78,27 @@ static k_thread_stack_t *z_thread_stack_alloc_dyn(size_t size, int flags)
 #endif /* CONFIG_DYNAMIC_OBJECTS */
 	}
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * For CHERI bounds, the returned allocation from sysheap takes into account
+	 * chunk sizes, meta data and cheri rounding.
+	 * The address of the pointer returned is therefore not aligned with the base.
+	 * The address instead is aligned to what is requested here.
+	 * We can't narrow the bounds further here because
+	 * the meta data information and bounds are needed later during k_free
+	 * when freeing the memory off the heap.
+	 *
+	 * The bounds are narrowed further during thread creation so
+	 * we need to ensure the address is cheri aligned for what we need
+	 * by the stack later - arch_new_thread() sets exact bounds on the buffer.
+	 */
+	size_t cheri_len = __builtin_cheri_round_representable_length(K_KERNEL_STACK_LEN(size));
+	size_t cheri_align = ~__builtin_cheri_representable_alignment_mask(cheri_len) + 1;
+
+	return z_thread_aligned_alloc(MAX(cheri_align, Z_KERNEL_STACK_OBJ_ALIGN), cheri_len);
+#else
 	return z_thread_aligned_alloc(Z_KERNEL_STACK_OBJ_ALIGN, K_KERNEL_STACK_LEN(size));
+#endif /* __CHERI_PURE_CAPABILITY__ */
 }
 
 k_thread_stack_t *z_impl_k_thread_stack_alloc(size_t size, int flags)
