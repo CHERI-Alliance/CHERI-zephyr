@@ -81,6 +81,22 @@ set -e
 -s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool \
 -s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.small \
 -s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.large \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.no_alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.no_alloc.user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.alloc.user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.no_alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.no_alloc.user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.alloc.user \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
 -s tests/kernel/threads/tls/kernel.threads.tls.userspace \
@@ -189,6 +205,22 @@ set -e
 -s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool \
 -s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.small \
 -s tests/cheri/kernel/dynamic_stack/cheri.kernel.dynamic.stack.pool.large \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.no_alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.no_alloc.user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.no_pool.alloc.user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.no_alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.no_alloc.user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.alloc.no_user \
+-s tests/kernel/threads/dynamic_thread_stack/\
+kernel.threads.dynamic_thread.stack.pool.alloc.user \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
 -s tests/kernel/threads/tls/kernel.threads.tls.userspace \
