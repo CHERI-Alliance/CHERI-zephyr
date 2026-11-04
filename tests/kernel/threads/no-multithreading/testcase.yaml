@@ -26,3 +26,17 @@ tests:
       - qemu_leon3
     integration_platforms:
       - qemu_cortex_m0
+  kernel.threads.no-multithreading.cheri:
+    tags:
+      - kernel
+      - cheri
+    filter: not CONFIG_SMP
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - qemu_riscv32cheri
+      - qemu_riscv32cheri_purecap
+      - qemu_riscv32cheri_zcheripurecap
+      - qemu_riscv64cheri
+      - qemu_riscv64cheri_purecap
+      - qemu_riscv64cheri_zcheripurecap

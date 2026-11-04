@@ -100,6 +100,7 @@ kernel.threads.dynamic_thread.stack.pool.alloc.user \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
 -s tests/kernel/threads/tls/kernel.threads.tls.userspace \
+-s tests/kernel/threads/no-multithreading/kernel.threads.no-multithreading.cheri \
 -s tests/kernel/msgq/msgq_usage/kernel.message_queue.usage \
 -s tests/kernel/msgq/msgq_api/kernel.message_queue \
 -s tests/cheri/lib/c_lib/common/cheri.libraries.libc.common \
@@ -224,6 +225,7 @@ kernel.threads.dynamic_thread.stack.pool.alloc.user \
 -s tests/kernel/mem_heap/k_heap_api \
 -s tests/kernel/threads/thread_apis/kernel.threads.apis \
 -s tests/kernel/threads/tls/kernel.threads.tls.userspace \
+-s tests/kernel/threads/no-multithreading/kernel.threads.no-multithreading.cheri \
 -s tests/kernel/msgq/msgq_usage/kernel.message_queue.usage \
 -s tests/kernel/msgq/msgq_api/kernel.message_queue \
 -s tests/cheri/lib/c_lib/common/cheri.libraries.libc.common \
