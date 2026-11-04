@@ -351,10 +351,17 @@ static bool bad_stack_pointer(struct arch_esf *esf)
 	uintptr_t isr_stack = (uintptr_t)z_interrupt_stacks;
 	uintptr_t main_stack = (uintptr_t)z_main_stack;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	if ((sp >= isr_stack && sp < isr_stack + (size_t)Z_RISCV_STACK_GUARD_SIZE) ||
+	    (sp >= main_stack && sp < main_stack + (size_t)Z_RISCV_STACK_GUARD_SIZE)) {
+		return true;
+	}
+#else
 	if ((sp >= isr_stack && sp < isr_stack + Z_RISCV_STACK_GUARD_SIZE) ||
 	    (sp >= main_stack && sp < main_stack + Z_RISCV_STACK_GUARD_SIZE)) {
 		return true;
 	}
+#endif
 #endif /* CONFIG_MULTITHREADING */
 #endif /* CONFIG_PMP_STACK_GUARD */
 
