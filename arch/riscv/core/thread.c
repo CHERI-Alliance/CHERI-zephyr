@@ -327,7 +327,10 @@ FUNC_NORETURN void z_riscv_switch_to_main_no_multithreading(k_thread_entry_t mai
 	register uintptr_t ca0 __asm__("ca0") = (uintptr_t)main_entry;
 	register uintptr_t ca1 __asm__("ca1") = (uintptr_t)main_stack;
 
-	__asm__ volatile("#M_CMOVE csp, %0; cjalr cra, %1, 0" : : "r"(ca1), "r"(ca0) : "memory");
+	__asm__ volatile(STRINGIFY(M_CMOVE) " csp, %0; " STRINGIFY(M_CJALR) " cra, %1, 0"
+			 :
+			 : "r"(ca1), "r"(ca0)
+			 : "memory");
 #else
 	__asm__ volatile("mv sp, %0; jalr ra, %1, 0"
 			 :
