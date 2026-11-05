@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Copyright (c) 2026 Added to support CHERI 2026, University of Birmingham */
+
+/* This is an overlay file to use uart1 instead of uart 0 */
+/* uart 1 comes out on the pmod bus - J53 */
+
+/* Run using:
+ * west build ... -- \
+ *   -DDTC_OVERLAY_FILE=${ZEPHYR_BASE}/boards/codasip/hobgoblin_riscv64cheri/uart1.overlay
+ */
+
+/ {
+	chosen {
+	zephyr,console = &uart1;
+	zephyr,shell-uart = &uart1;
+	};
+};
+
+&soc {
+	uart1: uartlite@10110000 {
+		compatible = "xlnx,xps-uartlite-1.00.a";
+		reg = <0x10110000 0x10>;
+		interrupts-extended = <&plic 2 1>;
+		current-speed = <115200>;
+		status = "okay";
+	};
+};
