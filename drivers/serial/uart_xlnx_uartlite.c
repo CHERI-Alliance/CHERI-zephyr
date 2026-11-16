@@ -15,6 +15,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/sys_io.h>
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <zephyr/arch/riscv/cheri/cheri_funcs.h>
+#endif
+
 /* AXI UART Lite v2 registers offsets (See Xilinx PG142 for details) */
 #define RX_FIFO_OFFSET  0x00
 #define TX_FIFO_OFFSET  0x04
@@ -39,12 +43,27 @@
 #define CTRL_REG_RST_RX_FIFO BIT(1)
 #define CTRL_REG_ENABLE_INTR BIT(4)
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#define UARTLITE_MMAP_LENGTH 0x10
+#endif
+
 struct xlnx_uartlite_config {
 	mm_reg_t base;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 };
+
+#ifdef __CHERI_PURE_CAPABILITY__
+static inline uintptr_t xlnx_uartlite_get_port(const struct device *dev)
+{
+	const struct xlnx_uartlite_config *config = dev->config;
+
+	/* Permissions set at higher layer */
+	return (uintptr_t)cheri_build_device_cap(config->base,
+						 UARTLITE_MMAP_LENGTH);
+}
+#endif
 
 struct xlnx_uartlite_data {
 	uint32_t errors;
@@ -71,7 +90,12 @@ static inline uint32_t xlnx_uartlite_read_status(const struct device *dev)
 	uint32_t status;
 
 	/* Cache errors as they are cleared by reading the STAT_REG */
+#ifdef __CHERI_PURE_CAPABILITY__
+	status = sys_read32(xlnx_uartlite_get_port(dev) +
+			    STAT_REG_OFFSET);
+#else
 	status = sys_read32(config->base + STAT_REG_OFFSET);
+#endif
 	data->errors &= (status & STAT_REG_ERROR_MASK);
 
 	/* Return current status and previously cached errors */
@@ -90,7 +114,14 @@ static inline unsigned char xlnx_uartlite_read_rx_fifo(const struct device *dev)
 {
 	const struct xlnx_uartlite_config *config = dev->config;
 
-	return (sys_read32(config->base + RX_FIFO_OFFSET) & BIT_MASK(8));
+#ifdef __CHERI_PURE_CAPABILITY__
+	return (sys_read32(xlnx_uartlite_get_port(dev) +
+			   RX_FIFO_OFFSET) &
+		BIT_MASK(8));
+#else
+	return (sys_read32(config->base + RX_FIFO_OFFSET) &
+		BIT_MASK(8));
+#endif
 }
 
 static inline void xlnx_uartlite_write_tx_fifo(const struct device *dev,
@@ -98,7 +129,14 @@ static inline void xlnx_uartlite_write_tx_fifo(const struct device *dev,
 {
 	const struct xlnx_uartlite_config *config = dev->config;
 
-	sys_write32((uint32_t)c, config->base + TX_FIFO_OFFSET);
+#ifdef __CHERI_PURE_CAPABILITY__
+	sys_write32((uint32_t)c,
+		    xlnx_uartlite_get_port(dev) +
+			    TX_FIFO_OFFSET);
+#else
+	sys_write32((uint32_t)c,
+		    config->base + TX_FIFO_OFFSET);
+#endif
 }
 
 static int xlnx_uartlite_poll_in(const struct device *dev, unsigned char *c)
@@ -163,8 +201,13 @@ static int xlnx_uartlite_err_check(const struct device *dev)
 static inline void xlnx_uartlite_irq_enable(const struct device *dev)
 {
 	const struct xlnx_uartlite_config *config = dev->config;
-
+#ifdef __CHERI_PURE_CAPABILITY__
+		sys_write32(CTRL_REG_ENABLE_INTR,
+			    xlnx_uartlite_get_port(dev) +
+				    CTRL_REG_OFFSET);
+#else
 	sys_write32(CTRL_REG_ENABLE_INTR, config->base + CTRL_REG_OFFSET);
+#endif
 }
 
 static inline void xlnx_uartlite_irq_cond_disable(const struct device *dev)
@@ -174,7 +217,14 @@ static inline void xlnx_uartlite_irq_cond_disable(const struct device *dev)
 
 	/* TX and RX IRQs are shared. Only disable if both are disabled. */
 	if (!data->tx_irq_enabled && !data->rx_irq_enabled) {
-		sys_write32(0, config->base + CTRL_REG_OFFSET);
+#ifdef __CHERI_PURE_CAPABILITY__
+		sys_write32(0,
+			    xlnx_uartlite_get_port(dev) +
+				    CTRL_REG_OFFSET);
+#else
+		sys_write32(0,
+			    config->base + CTRL_REG_OFFSET);
+#endif
 	}
 }
 
@@ -322,7 +372,16 @@ static void xlnx_uartlite_irq_callback_set(const struct device *dev,
 	data->callback_data = user_data;
 }
 
+#ifdef CONFIG_CHERI
+BUILD_ASSERT(CONFIG_CHERI > CONFIG_ISR_TABLE_USE_SYMBOLS,
+	     "CONFIG_ISR_TABLE_USE_SYMBOLS is necessary for CHERI");
+#endif
+
+#ifdef CONFIG_ISR_TABLE_USE_SYMBOLS
+void xlnx_uartlite_isr(const struct device *dev)
+#else
 static __unused void xlnx_uartlite_isr(const struct device *dev)
+#endif
 {
 	struct xlnx_uartlite_data *data = dev->data;
 
@@ -344,8 +403,16 @@ static int xlnx_uartlite_init(const struct device *dev)
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 	/* Reset FIFOs and disable interrupts */
-	sys_write32(CTRL_REG_RST_RX_FIFO | CTRL_REG_RST_TX_FIFO,
+#ifdef __CHERI_PURE_CAPABILITY__
+	sys_write32(CTRL_REG_RST_RX_FIFO |
+			    CTRL_REG_RST_TX_FIFO,
+		    xlnx_uartlite_get_port(dev) +
+			    CTRL_REG_OFFSET);
+#else
+	sys_write32(CTRL_REG_RST_RX_FIFO |
+			    CTRL_REG_RST_TX_FIFO,
 		    config->base + CTRL_REG_OFFSET);
+#endif
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
