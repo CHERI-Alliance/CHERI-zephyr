@@ -45,6 +45,15 @@ set -e
 -T samples/cheri \
 -v --short-build-path -O/tmp/twister-out
 
+#Hobgoblin platform build only
+./scripts/twister --runtime-artifact-cleanup --force-color --inline-logs \
+-p hobgoblin_riscv32cheri \
+-p hobgoblin_riscv32cheri_zcheripurecap \
+-p hobgoblin_riscv64cheri \
+-p hobgoblin_riscv64cheri_zcheripurecap \
+-T samples/cheri/boards/hobgoblin/hobgoblin_uarts \
+-v --short-build-path -O/tmp/twister-out \
+
 #TESTS
 #without PMP enabled in zcheripurecap
 #64bit - WITH and WITHOUT smp

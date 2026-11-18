@@ -1,0 +1,75 @@
+sample:
+  description: sample different uarts on hobgoblin platform
+  name: hobgoblin_uarts
+common:
+  tags: cheri
+  harness: console
+  harness_config:
+    type: one_line
+    regex:
+      - "UART test (.*)"
+tests:
+  samples.cheri.hobgoblin_uarts_uart0_poll:
+    tags: cheri
+    build_only: true
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - hobgoblin_riscv32cheri
+      - hobgoblin_riscv64cheri
+      - hobgoblin_riscv32cheri_zcheripurecap
+      - hobgoblin_riscv64cheri_zcheripurecap
+  samples.cheri.hobgoblin_uarts_uart0_interrupts:
+    tags: cheri
+    extra_args:
+      - CHERI_TEST_UART_INTERRUPTS=ON
+    build_only: true
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - hobgoblin_riscv32cheri
+      - hobgoblin_riscv64cheri
+      - hobgoblin_riscv32cheri_zcheripurecap
+      - hobgoblin_riscv64cheri_zcheripurecap
+  samples.cheri.hobgoblin_uarts_uart1_poll_64:
+    tags: cheri
+    extra_args:
+      - DTC_OVERLAY_FILE=${ZEPHYR_BASE}/boards/codasip/hobgoblin_riscv64cheri/uart1.overlay
+    build_only: true
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - hobgoblin_riscv64cheri
+      - hobgoblin_riscv64cheri_zcheripurecap
+  samples.cheri.hobgoblin_uarts_uart1_poll_32:
+    tags: cheri
+    extra_args:
+      - DTC_OVERLAY_FILE=${ZEPHYR_BASE}/boards/codasip/hobgoblin_riscv32cheri/uart1.overlay
+    build_only: true
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - hobgoblin_riscv32cheri
+      - hobgoblin_riscv32cheri_zcheripurecap
+  samples.cheri.hobgoblin_uarts_uart1_interrupts_64:
+    tags: cheri
+    extra_args:
+      - DTC_OVERLAY_FILE=${ZEPHYR_BASE}/boards/codasip/hobgoblin_riscv64cheri/uart1.overlay
+      - CHERI_TEST_UART_INTERRUPTS=ON
+    build_only: true
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - hobgoblin_riscv64cheri
+      - hobgoblin_riscv64cheri_zcheripurecap
+  samples.cheri.hobgoblin_uarts_uart1_interrupts_32:
+    tags: cheri
+    extra_args:
+      - DTC_OVERLAY_FILE=${ZEPHYR_BASE}/boards/codasip/hobgoblin_riscv32cheri/uart1.overlay
+      - CHERI_TEST_UART_INTERRUPTS=ON
+    build_only: true
+    toolchain_allow:
+      - llvm-cheri
+    platform_allow:
+      - hobgoblin_riscv32cheri
+      - hobgoblin_riscv32cheri_zcheripurecap
