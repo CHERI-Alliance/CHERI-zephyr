@@ -5,6 +5,9 @@ on:
     branches:
       - v*-cheri-branch
       - collab-cheri**
+      - feature/0.**
+      - feature/cheri**
+      - feature/CHERI**
   pull_request:
     branches:
       - v*-cheri-branch
@@ -24,7 +27,7 @@ concurrency:
 jobs:
   build:
     name: Twister (${{ matrix.platform }})
-    runs-on: the-capable-hub-aws-ci
+    runs-on: ubuntu-24.04
     container:
       image: ghcr.io/zephyrproject-rtos/ci-repo-cache:v0.27.4.20241026 # (based on zephyr 4.1.0 )
 

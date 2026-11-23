@@ -17,10 +17,11 @@ on:
 jobs:
   cheri-twister:
     name: Run CHERI Twister Offline Test
-    runs-on: the-capable-hub-aws-ci
+    runs-on: ubuntu-24.04
     container:
       image: ghcr.io/zephyrproject-rtos/ci-repo-cache:latest
-      options: --user 1000
+      # only use this when runner is the-capable-hub-aws-ci
+      # options: --user 1000
 
     env:
       HOME: /home/user
@@ -46,6 +47,11 @@ jobs:
           wget -qO- https://api.github.com/repos/cheri-zephyr-project/custom-debs/releases/latest \
           | grep browser_download_url | grep '\.deb"' | cut -d '"' -f 4 \
           | xargs -n1 wget -c
+
+      # add to remove warnings when runner is ubuntu-24.04
+      - name: Configure Git
+        run: |
+          git config --global --add safe.directory $ZEPHYR_PROJECT_DIR
 
       - name: Install Codasip toolchain DEBs
         run: |
@@ -82,8 +88,11 @@ jobs:
           sudo ln -s $TOOL_DIR/llvm-builtins-codasip/rv64imazcheripurecap-l64pc128/lib/baremetal \
                     $TOOL_DIR/llvm-cheri-codasip/build/baremetal/baremetal-riscv64-purecap/lib
 
+      # add cache directory for ubuntu-24.04 runner
       - name: Install west
         run: |
+          export PIP_CACHE_DIR=/tmp/pip-cache
+
           python3 -m venv $ZEPHYR_PARENT_DIR/.venv && \
           . $ZEPHYR_PARENT_DIR/.venv/bin/activate && \
           pip install pyelftools && \

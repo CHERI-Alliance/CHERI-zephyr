@@ -40,7 +40,7 @@ jobs:
           - name: ubuntu-24.04
             container: ubuntu:24.04
 
-    runs-on: the-capable-hub-aws-ci
+    runs-on: ubuntu-24.04
 
     container:
       image: ${{ matrix.container }}
