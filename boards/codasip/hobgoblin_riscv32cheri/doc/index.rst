@@ -6,7 +6,7 @@ Overview
 The RISCV32CHERI hobgoblin board configuration is used for the RISCV32 and RISCV32CHERI Codasip FPGA board.
 
 Get the Codasip Toolchain and hobgoblin FPGA hardware
-**************************
+*****************************************************
 You need to use the Codasip llvm-cheri toolchain.
 Set the following to build with west:
 ``export ZEPHYR_TOOLCHAIN_VARIANT=llvm-cheri``
